@@ -1,0 +1,17 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd agrodigital
+        - npm ci
+    build:
+      commands:
+        - npm run web:build
+  artifacts:
+    baseDirectory: agrodigital/web-build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - agrodigital/node_modules/**/* 
