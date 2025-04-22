@@ -14,7 +14,7 @@ applications:
             - npx eas-cli build --platform android --non-interactive --no-wait || true
             - npm run web:build
       artifacts:
-        baseDirectory: web-build
+        baseDirectory: dist
         files:
           - '**/*'
       cache:
