@@ -1,22 +1,22 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - cd agrodigital
-        - npm ci
-        - npm install -g eas-cli || true
-        - npm install expo-dev-client || true
-    build:
-      commands:
-        - npx eas-cli build --platform ios --non-interactive --no-wait || true
-        - npx eas-cli build --platform android --non-interactive --no-wait || true
-        - npm run web:build
-  artifacts:
-    # For web deployment
-    baseDirectory: agrodigital/web-build
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - agrodigital/node_modules/**/* 
+applications:
+  - appRoot: agrodigital
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+            - npm install -g eas-cli || true
+            - npm install expo-dev-client || true
+        build:
+          commands:
+            - npx eas-cli build --platform ios --non-interactive --no-wait || true
+            - npx eas-cli build --platform android --non-interactive --no-wait || true
+            - npm run web:build
+      artifacts:
+        baseDirectory: web-build
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/* 
