@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'https://tu-api-gateway-id.execute-api.us-east-1.amazonaws.com/dev';
+const API_URL = 'https://eni0ukqpp8.execute-api.us-east-1.amazonaws.com/dev';
 
 const apiClient = axios.create({
     baseURL: API_URL,

@@ -291,10 +291,20 @@ export default function RegistroUsuarioScreen() {
     setTimeout(() => {
       if (isFilled && agreedToTerms) {
         console.log("Form Data Submitted:", formData);
-        // Navigate on success
-        router.push('/screens/Historial');
-        // No need to set isLoading false here as we are navigating away
-        // setIsLoading(false); // Optionally set false if staying on screen
+        // Mostrar mensaje de éxito
+        Alert.alert(
+          "Registro exitoso",
+          "Tu perfil ha sido creado correctamente. Ahora puedes acceder a todas las funciones de AgroDigital.",
+          [
+            {
+              text: "Continuar",
+              onPress: () => {
+                // Navegar al sistema de pestañas después del registro exitoso
+                router.replace('/(tabs)');
+              }
+            }
+          ]
+        );
       } else {
         setShowErrorMessage(true);
         setIsLoading(false); // Stop loading on validation failure
