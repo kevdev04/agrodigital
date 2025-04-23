@@ -230,27 +230,48 @@ export default function RegistroTerrenoScreen() {
       // Mostrar indicador de carga
       setIsLoadingLocation(true);
 
+      // En una app real, este ID vendría del sistema de autenticación o de la navegación
+      // Por ahora, usamos un ID fijo para pruebas
+      const userId = "user123";
+      
+      // Calcular superficie total
+      const hectareas = parseFloat(terrainData.hectareas);
+      const metros = parseFloat(terrainData.metros || '0') / 10000; // convertir a hectáreas
+      const areaTotal = hectareas + metros;
+      
+      // Valor estimado (para demostración)
+      const valorPorHectarea = Math.floor(Math.random() * 100000) + 50000; // Entre 50,000 y 150,000 por hectárea
+      const valorTotal = areaTotal * valorPorHectarea;
+      
       // Preparar los datos para enviar a la API
       const cropData = {
-        // Generar un ID único para este cultivo
+        // Información básica del terreno
         cropId: `crop-${Date.now()}`,
-        userId: "user123", // Este ID debería venir de tu sistema de autenticación
+        userId: userId,
         name: terrainData.cultivo,
         cropType: terrainData.cultivo,
         plantDate: new Date().toISOString().split('T')[0],
         location: `${location.coords.latitude},${location.coords.longitude}`,
-        area: parseFloat(terrainData.hectareas) + (parseFloat(terrainData.metros || '0') / 10000),
+        area: areaTotal,
         notes: terrainData.descripcion || '',
         status: 'active',
+        
+        // Información adicional para la valoración financiera
+        valorEstimado: valorTotal,
+        valorPorHectarea: valorPorHectarea,
+        tieneEscrituras: documents.length > 0,
+        fechaRegistro: new Date().toISOString(),
+        
+        // Metadatos
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      console.log('Enviando datos del cultivo:', cropData);
+      console.log('Enviando datos del terreno:', cropData);
 
       // Llamar a la API para crear el cultivo
       const response = await cropService.createCrop(cropData);
-      console.log('Cultivo creado exitosamente:', response.data);
+      console.log('Terreno registrado exitosamente:', response.data);
 
       // Mostrar panel de resultado exitoso
       Alert.alert(
@@ -261,8 +282,10 @@ export default function RegistroTerrenoScreen() {
             text: 'Ver mis cultivos',
             onPress: () => {
               try {
-                // Navigate to the tabs navigation
-                router.replace("/(tabs)");
+                // @ts-ignore - Ignorar errores de tipos de TypeScript
+                router.navigate({
+                  pathname: "/(tabs)/cultivos"
+                });
               } catch (error) {
                 console.error('Error al navegar:', error);
                 router.back();

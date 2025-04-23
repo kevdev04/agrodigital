@@ -1,14 +1,78 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import { userService } from '../../api/userService';
 
 export default function PerfilScreen() {
+    const [userData, setUserData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Datos por defecto en caso de error o mientras carga
+    const defaultUserData = {
+        name: "Usuario AgroDigital",
+        email: "usuario@agrodigital.com",
+        address: "No especificado",
+        phone: "No especificado",
+        birthDate: "",
+        gender: ""
+    };
+
+    useEffect(() => {
+        // Cargar datos del usuario al montar el componente
+        loadUserData();
+    }, []);
+
+    const loadUserData = async () => {
+        try {
+            setLoading(true);
+            const response = await userService.getProfile();
+            if (response && response.data) {
+                setUserData(response.data);
+                console.log("Datos de usuario cargados en perfil:", response.data);
+            } else {
+                console.log("No se recibieron datos de usuario del servidor");
+                setUserData(defaultUserData);
+            }
+        } catch (error) {
+            console.error('Error al cargar datos del usuario:', error);
+            // Usar datos por defecto en caso de error
+            setUserData(defaultUserData);
+            Alert.alert(
+                "Error de conexión",
+                "No se pudieron cargar tus datos de perfil. Mostrando información básica."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRefresh = () => {
+        loadUserData();
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Mi Perfil</Text>
+                </View>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.light.tint} />
+                    <Text style={styles.loadingText}>Cargando datos del perfil...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Mi Perfil</Text>
+                <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+                    <Feather name="refresh-cw" size={20} color="#fff" />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.profileCard}>
@@ -16,18 +80,32 @@ export default function PerfilScreen() {
                     source={require('../../assets/images/logo.png')}
                     style={styles.profileImage}
                 />
-                <Text style={styles.name}>Usuario AgroDigital</Text>
-                <Text style={styles.email}>usuario@agrodigital.com</Text>
+                <Text style={styles.name}>{userData?.name || 'Usuario AgroDigital'}</Text>
+                <Text style={styles.email}>{userData?.email || 'usuario@agrodigital.com'}</Text>
 
                 <View style={styles.infoRow}>
                     <Feather name="map-pin" size={18} color={Colors.light.icon} />
-                    <Text style={styles.infoText}>Región Agrícola</Text>
+                    <Text style={styles.infoText}>{userData?.address || 'No especificado'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                     <Feather name="phone" size={18} color={Colors.light.icon} />
-                    <Text style={styles.infoText}>+52 123 456 7890</Text>
+                    <Text style={styles.infoText}>{userData?.phone || 'No especificado'}</Text>
                 </View>
+
+                {userData?.birthDate && (
+                    <View style={styles.infoRow}>
+                        <Feather name="calendar" size={18} color={Colors.light.icon} />
+                        <Text style={styles.infoText}>Fecha de nacimiento: {userData.birthDate}</Text>
+                    </View>
+                )}
+
+                {userData?.gender && (
+                    <View style={styles.infoRow}>
+                        <Feather name="user" size={18} color={Colors.light.icon} />
+                        <Text style={styles.infoText}>Género: {userData.gender}</Text>
+                    </View>
+                )}
             </View>
 
             <View style={styles.settingsSection}>
@@ -70,11 +148,29 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.light.tint,
         borderBottomLeftRadius: 20,
         borderBottomRightRadius: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         color: 'white',
+    },
+    refreshButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        padding: 8,
+        borderRadius: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: Colors.light.text,
     },
     profileCard: {
         margin: 20,

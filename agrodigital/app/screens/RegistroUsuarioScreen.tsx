@@ -292,18 +292,45 @@ export default function RegistroUsuarioScreen() {
       if (isFilled && agreedToTerms) {
         console.log("Preparando datos para registro:", formData);
         
-        // Crear objeto con los datos del usuario para enviar a la API
+        // Generar CURP y RFC ficticios (en una app real se obtendrían de otra manera)
+        const nameParts = formData.fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.length > 1 ? nameParts[1] : '';
+        const secondLastName = nameParts.length > 2 ? nameParts[2] : '';
+        
+        // Generar fecha en formato necesario para CURP/RFC
+        const birthDate = formData.birthDate.split('/');
+        const day = birthDate[0]?.padStart(2, '0') || '01';
+        const month = birthDate[1]?.padStart(2, '0') || '01';
+        const year = birthDate[2]?.substring(2) || '00';
+        
+        // Crear CURP y RFC ficticios
+        const curpPrefix = lastName.substring(0, 2).toUpperCase() + 
+                          secondLastName.substring(0, 1).toUpperCase() + 
+                          firstName.substring(0, 1).toUpperCase();
+        const curp = `${curpPrefix}${year}${month}${day}MDFNDR09`;
+        const rfc = `${curpPrefix}${year}${month}${day}RT5`;
+        
+        // Crear datos de usuario completos
         const userData = {
-          userId: `user-${Date.now()}`,  // Generar un ID único
+          userId: `user-${Date.now()}`,
           fullName: formData.fullName,
-          email: `${formData.fullName.replace(/\s+/g, '').toLowerCase()}@ejemplo.com`, // Email provisional
-          password: "Password123!", // Contraseña provisional
+          email: `${formData.fullName.replace(/\s+/g, '').toLowerCase()}@ejemplo.com`,
+          password: "Password123!",
           phone: formData.phone,
           address: formData.address,
           birthState: formData.birthState,
           birthDate: formData.birthDate,
           gender: formData.gender,
-          createdAt: new Date().toISOString()
+          curp: curp,
+          rfc: rfc,
+          // Datos financieros ficticios
+          creditScore: Math.floor(Math.random() * 300) + 500, // Entre 500 y 800
+          hasGoodCredit: true,
+          monthlyIncome: Math.floor(Math.random() * 20000) + 15000, // Entre 15000 y 35000
+          employmentTime: `${Math.floor(Math.random() * 5) + 1} años, ${Math.floor(Math.random() * 11) + 1} meses`,
+          createdAt: new Date().toISOString(),
+          status: 'ACTIVE'
         };
         
         console.log("Enviando datos de usuario:", userData);
@@ -312,18 +339,28 @@ export default function RegistroUsuarioScreen() {
         const response = await userService.register(userData);
         console.log("Usuario registrado exitosamente:", response.data);
         
-        // Preparar la navegación a la pantalla de éxito con los datos del usuario
+        // Guardar los datos completos para usarlos en pantallas posteriores
+        // En una app real, esto se haría con un estado global o almacenamiento seguro
         try {
           // @ts-ignore - Ignorar errores de tipo en la navegación
           router.navigate({
             pathname: "/screens/Historial",
             params: {
+              // Datos básicos
               fullName: formData.fullName,
               phone: formData.phone,
               address: formData.address,
               birthState: formData.birthState,
               birthDate: formData.birthDate,
-              gender: formData.gender
+              gender: formData.gender,
+              // Datos generados
+              curp: curp,
+              rfc: rfc,
+              creditScore: userData.creditScore.toString(),
+              monthlyIncome: userData.monthlyIncome.toString(),
+              employmentTime: userData.employmentTime,
+              // ID para futuras operaciones
+              userId: userData.userId
             }
           });
         } catch (error) {
