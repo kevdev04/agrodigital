@@ -316,7 +316,7 @@ export default function RegistroUsuarioScreen() {
         try {
           // @ts-ignore - Ignorar errores de tipo en la navegación
           router.navigate({
-            pathname: "/screens/RegistroExitosoScreen",
+            pathname: "/screens/Historial",
             params: {
               fullName: formData.fullName,
               phone: formData.phone,

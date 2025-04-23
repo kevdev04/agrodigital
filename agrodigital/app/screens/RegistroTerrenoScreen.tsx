@@ -261,10 +261,8 @@ export default function RegistroTerrenoScreen() {
             text: 'Ver mis cultivos',
             onPress: () => {
               try {
-                // @ts-ignore - Ignorar errores de tipos de TypeScript
-                router.navigate({
-                  pathname: "/(tabs)/cultivos"
-                });
+                // Navigate to the tabs navigation
+                router.replace("/(tabs)");
               } catch (error) {
                 console.error('Error al navegar:', error);
                 router.back();
