@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
@@ -22,7 +22,8 @@ export default function WelcomeScreen() {
 
   const handleStart = () => {
     player.pause();
-    router.push('/screens/RegistroUsuarioScreen');
+    // Navegar al formulario de registro primero
+    router.replace('/screens/RegistroUsuarioScreen');
   };
 
   React.useEffect(() => {
@@ -61,7 +62,7 @@ export default function WelcomeScreen() {
             ¡Cosechamos Progreso!
           </ThemedText>
         </View>
-        <TouchableOpacity style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={handleStart}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50' }]} onPress={handleStart}>
           <Text style={styles.buttonText}>Comenzar</Text>
         </TouchableOpacity>
       </SafeAreaView>

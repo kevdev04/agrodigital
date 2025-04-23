@@ -27,6 +27,7 @@ import {
   ChevronLeft, 
   Info 
 } from 'lucide-react-native';
+import { cropService } from '@/api/cropService';
 
 // Color constants matching the app theme
 const COLOR_PRIMARY = Colors.light.tint;
@@ -202,45 +203,69 @@ export default function RegistroTerrenoScreen() {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Form submission
-  const handleSubmit = () => {
-    // Validation
-    if (!terrainData.hectareas || !terrainData.metros) {
-      Alert.alert('Campos requeridos', 'Por favor ingresa las medidas de tu terreno.');
+  // Submit form function
+  const handleSubmit = async () => {
+    // Validaciones
+    if (!terrainData.hectareas.trim() || !terrainData.cultivo.trim()) {
+      Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
       return;
     }
-    
+
     if (photos.length === 0) {
-      Alert.alert('Fotos requeridas', 'Por favor agrega al menos una foto de tu terreno.');
+      Alert.alert('Error', 'Por favor añade al menos una foto del terreno.');
       return;
     }
-    
+
     if (!location) {
-      Alert.alert('Ubicación requerida', 'Por favor registra la ubicación GPS de tu terreno.');
+      Alert.alert('Error', 'Por favor registra la ubicación del terreno.');
       return;
     }
-    
-    if (documents.length === 0) {
-      Alert.alert('Documentos requeridos', 'Por favor agrega los documentos legales de tu terreno.');
-      return;
-    }
-    
+
     if (!agreementChecked) {
-      Alert.alert('Acuerdo requerido', 'Por favor acepta los términos y condiciones para continuar.');
+      Alert.alert('Error', 'Debes aceptar los términos y condiciones.');
       return;
     }
-    
-    // Success - would normally send data to API
-    Alert.alert(
-      '¡Datos guardados!', 
-      'Los datos de tu terreno se han registrado exitosamente.',
-      [
-        { 
-          text: 'OK', 
-          onPress: () => router.push('../screens/Dashboard') // Navigate to dashboard or next screen
-        }
-      ]
-    );
+
+    try {
+      // Mostrar indicador de carga
+      setIsLoadingLocation(true);
+
+      // Preparar los datos para enviar a la API
+      const cropData = {
+        userId: "user123", // Este ID debería venir de tu sistema de autenticación
+        name: terrainData.cultivo,
+        cropType: terrainData.cultivo,
+        plantDate: new Date().toISOString().split('T')[0],
+        location: `${location.coords.latitude},${location.coords.longitude}`,
+        area: parseFloat(terrainData.hectareas) + (parseFloat(terrainData.metros || '0') / 10000),
+        notes: terrainData.descripcion || '',
+        status: 'active'
+      };
+
+      // Llamar a la API para crear el cultivo
+      const response = await cropService.createCrop(cropData);
+      console.log('Cultivo creado:', response.data);
+
+      // Todo salió bien, mostramos un mensaje de éxito
+      Alert.alert(
+        'Registro exitoso',
+        'Tu terreno ha sido registrado correctamente.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error al registrar el terreno:', error);
+      Alert.alert(
+        'Error',
+        'Hubo un problema al registrar tu terreno. Por favor intenta de nuevo más tarde.'
+      );
+    } finally {
+      setIsLoadingLocation(false);
+    }
   };
 
   return (
