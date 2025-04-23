@@ -232,6 +232,8 @@ export default function RegistroTerrenoScreen() {
 
       // Preparar los datos para enviar a la API
       const cropData = {
+        // Generar un ID único para este cultivo
+        cropId: `crop-${Date.now()}`,
         userId: "user123", // Este ID debería venir de tu sistema de autenticación
         name: terrainData.cultivo,
         cropType: terrainData.cultivo,
@@ -239,21 +241,35 @@ export default function RegistroTerrenoScreen() {
         location: `${location.coords.latitude},${location.coords.longitude}`,
         area: parseFloat(terrainData.hectareas) + (parseFloat(terrainData.metros || '0') / 10000),
         notes: terrainData.descripcion || '',
-        status: 'active'
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
+
+      console.log('Enviando datos del cultivo:', cropData);
 
       // Llamar a la API para crear el cultivo
       const response = await cropService.createCrop(cropData);
-      console.log('Cultivo creado:', response.data);
+      console.log('Cultivo creado exitosamente:', response.data);
 
-      // Todo salió bien, mostramos un mensaje de éxito
+      // Mostrar panel de resultado exitoso
       Alert.alert(
         'Registro exitoso',
-        'Tu terreno ha sido registrado correctamente.',
+        'Tu terreno ha sido registrado correctamente. Los detalles se han guardado en el sistema.',
         [
           {
-            text: 'OK',
-            onPress: () => router.back()
+            text: 'Ver mis cultivos',
+            onPress: () => {
+              try {
+                // @ts-ignore - Ignorar errores de tipos de TypeScript
+                router.navigate({
+                  pathname: "/(tabs)/cultivos"
+                });
+              } catch (error) {
+                console.error('Error al navegar:', error);
+                router.back();
+              }
+            }
           }
         ]
       );

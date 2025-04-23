@@ -48,11 +48,13 @@ export default function CultivosScreen({ onAddCrop }: CultivosScreenProps) {
       setLoading(true);
       // En una app real, este ID vendría del sistema de autenticación
       const userId = 'user123';
+      console.log('Obteniendo cultivos para el usuario:', userId);
       const response = await cropService.getUserCrops(userId);
+      console.log('Respuesta del servidor:', response.data);
       setCrops(response.data);
     } catch (error) {
       console.error('Error al cargar cultivos:', error);
-      Alert.alert('Error', 'No se pudieron cargar los cultivos.');
+      Alert.alert('Error', 'No se pudieron cargar los cultivos. Por favor intenta de nuevo más tarde.');
     } finally {
       setLoading(false);
       setRefreshing(false);
