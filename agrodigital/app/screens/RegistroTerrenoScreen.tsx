@@ -29,7 +29,7 @@ import {
 } from 'lucide-react-native';
 
 // Color constants matching the app theme
-const COLOR_PRIMARY = Colors.light.tint;
+const COLOR_PRIMARY = '#006400';
 const COLOR_GRAY = Colors.light.icon;
 const COLOR_ERROR = '#DC3545';
 const COLOR_BORDER_LIGHT = '#E5E7EB';
@@ -260,7 +260,7 @@ export default function RegistroTerrenoScreen() {
         {/* Instructional section */}
         <View style={styles.infoSection}>
           <Info size={20} color={COLOR_PRIMARY} />
-          <Text style={styles.infoText}>
+          <Text style={styles.infoText} numberOfLines={3} ellipsizeMode="tail">
             Para continuar con tu solicitud de financiamiento, necesitamos información sobre tu terreno.
           </Text>
         </View>
@@ -317,7 +317,7 @@ export default function RegistroTerrenoScreen() {
         {/* Photo section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fotografías del terreno</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={styles.sectionDescription} numberOfLines={3} ellipsizeMode="tail">
             Agrega fotos que muestren claramente los límites y características de tu terreno.
           </Text>
           
@@ -362,7 +362,7 @@ export default function RegistroTerrenoScreen() {
         {/* Location section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ubicación GPS</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={styles.sectionDescription} numberOfLines={4} ellipsizeMode="tail">
             Registra la ubicación exacta de tu terreno. Es importante que te encuentres físicamente en el terreno al momento de registrar la ubicación.
           </Text>
           
@@ -401,7 +401,7 @@ export default function RegistroTerrenoScreen() {
         {/* Documents section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Documentos legales</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={styles.sectionDescription} numberOfLines={3} ellipsizeMode="tail">
             Sube escrituras de propiedad u otros documentos que acrediten la propiedad del terreno.
           </Text>
           
@@ -447,7 +447,7 @@ export default function RegistroTerrenoScreen() {
             ]}>
               {agreementChecked && <Check size={16} color="#fff" />}
             </View>
-            <Text style={styles.agreementText}>
+            <Text style={styles.agreementText} numberOfLines={5} ellipsizeMode="tail">
               Declaro que soy el propietario legítimo del terreno y acepto que este sea utilizado como garantía para el financiamiento solicitado. Comprendo las implicaciones legales y financieras de este acuerdo.
             </Text>
           </TouchableOpacity>

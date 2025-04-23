@@ -61,7 +61,7 @@ export default function WelcomeScreen() {
             ¡Cosechamos Progreso!
           </ThemedText>
         </View>
-        <TouchableOpacity style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]} onPress={handleStart}>
+        <TouchableOpacity style={styles.button} onPress={handleStart}>
           <Text style={styles.buttonText}>Comenzar</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -92,15 +92,16 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: '80%',
-    height: 100,
+    height: 200,
     marginBottom: 40,
   },
   slogan: {
-    color: '#fff',
+    color: '#ffff',
     fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
+    paddingBottom: 10,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
@@ -112,9 +113,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
+    marginBottom: 20,
+    backgroundColor: '#006400',
   },
   buttonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
   },

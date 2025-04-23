@@ -32,6 +32,7 @@ import {
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router'; // Import useRouter
+import { Audio } from 'expo-av'; // Import Audio from expo-av
 
 // --- Constants for colors not defined in Colors.ts ---
 const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
@@ -242,6 +243,8 @@ export default function RegistroUsuarioScreen() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showErrorMessage, setShowErrorMessage] = useState(false);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleChange = (field: keyof FormData, value: string | { uri: string | null } | null) => {
      // Type assertion needed because state setter expects specific value types
@@ -340,9 +343,56 @@ export default function RegistroUsuarioScreen() {
     { value: 'Mujer', label: 'Mujer' },
   ];
 
+  const playInstructions = async () => {
+    // Stop any currently playing sound
+    if (sound) {
+      await sound.unloadAsync();
+      setSound(null);
+      setIsPlaying(false);
+    }
+
+    try {
+      // If not currently playing, create and play a new sound
+      if (!isPlaying) {
+        setIsPlaying(true);
+        
+        // Show loading indicator or status message
+        Alert.alert('Instrucciones de voz', 'Reproduciendo instrucciones de registro...');
+        
+        // Create and load the sound object
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          require('@/assets/audio/instrucciones-registro.mp3'),
+          { shouldPlay: true, volume: 1.0 }
+        );
+        
+        setSound(newSound);
+        
+        // When playback finishes
+        newSound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsPlaying(false);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      Alert.alert('Error', 'No se pudieron reproducir las instrucciones de audio.');
+      setIsPlaying(false);
+    }
+  };
+
+  // Clean up sound resources when component unmounts
+  React.useEffect(() => {
+    return sound
+      ? () => {
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
+
   const readAloud = (text: string) => {
-    // Placeholder: In a real app, use expo-speech
-    Alert.alert('Asistente de Voz', `Leyendo: ${text}`);
+    // We'll keep this function for compatibility but use our new audio player
+    playInstructions();
   };
 
   const handleTermsLink = () => {
@@ -377,8 +427,10 @@ export default function RegistroUsuarioScreen() {
           style={styles.header}>
           <TouchableOpacity
             style={styles.voiceAssistantButton}
-            onPress={() => readAloud('Asistente de voz activado. Te guiaré durante el proceso de registro.')}>
-            <Text style={styles.voiceAssistantText}>Activar asistente por voz</Text>
+            onPress={playInstructions}>
+            <Text style={styles.voiceAssistantText}>
+              {isPlaying ? 'Detener instrucciones' : 'Activar instrucciones por voz'}
+            </Text>
             <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
           </TouchableOpacity>
           <ThemedText type="title" style={styles.headerTitle}>
