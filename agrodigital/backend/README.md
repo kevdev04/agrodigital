@@ -1,140 +1,86 @@
-# Backend de AgroDigital
+# AgroDigital Backend
 
-Este es el backend de la aplicación AgroDigital, basado en AWS Lambda, API Gateway, DynamoDB y Cognito.
+Backend para la aplicación AgroDigital, usando Serverless Framework, AWS Lambda, API Gateway y DynamoDB.
 
 ## Requisitos previos
 
-- Node.js (v14+)
-- AWS CLI configurado
-- Una cuenta AWS
-- Serverless Framework (`npm install -g serverless`)
+- Node.js (versión 18 o superior)
+- Docker (para DynamoDB local)
+- AWS CLI (para despliegue en AWS)
 
-## Configuración inicial
+## Configuración del entorno local
 
-1. **Instalar dependencias**:
-   ```bash
-   npm install
-   ```
-
-2. **Configurar variables de entorno**:
-   - Copia el archivo `.env.example` a `.env`
-   - Actualiza los valores de las variables de entorno con tus credenciales de AWS
-
-3. **Crear un User Pool en AWS Cognito**:
-   - Ve a la consola de AWS
-   - Navega a Amazon Cognito
-   - Crea un nuevo User Pool
-   - Configura los atributos estándar (email, name)
-   - Crea un App Client
-   - Copia el User Pool ID y el App Client ID a tu archivo `.env`
-
-## Desarrollo local
-
-### Opción 1: Usando Express (recomendado para pruebas rápidas)
+1. Instalar dependencias:
 
 ```bash
-npm run dev
+npm install
 ```
 
-Esto iniciará un servidor Express que simula API Gateway y AWS Lambda en `http://localhost:3000`.
-
-### Opción 2: Usando Serverless Offline
+2. Iniciar DynamoDB local con Docker:
 
 ```bash
-npm start
+docker-compose up -d
 ```
 
-Esto iniciará Serverless Offline que emula AWS Lambda y API Gateway en `http://localhost:3000`.
-
-## Despliegue en AWS
-
-Para desplegar a AWS:
+3. Crear tablas en DynamoDB local:
 
 ```bash
-# Despliegue en el entorno predeterminado (dev)
-npm run deploy
-
-# Despliegue en entorno específico
-npm run deploy:dev
-npm run deploy:prod
+node scripts/create-tables.js create
 ```
 
-## Estructura de directorios
+4. Cargar datos de ejemplo:
 
+```bash
+node scripts/load-data.js
 ```
-backend/
-├── functions/           # Funciones Lambda
-│   ├── auth/            # Autenticación
-│   └── users/           # Gestión de usuarios
-├── utils/               # Utilidades compartidas
-├── models/              # Modelos de datos
-├── .env                 # Variables de entorno (local)
-├── .env.example         # Ejemplo de variables de entorno
-├── local-server.js      # Servidor Express para desarrollo local
-└── serverless.yml       # Configuración de Serverless Framework
+
+5. Iniciar el servidor local:
+
+```bash
+npm run start
 ```
+
+El servidor estará disponible en http://localhost:3000
 
 ## APIs disponibles
 
 ### Autenticación
+- POST /auth/register - Registrar usuario
+- POST /auth/login - Iniciar sesión
 
-- **Registro**: `POST /auth/register`
-  ```json
-  {
-    "email": "usuario@ejemplo.com",
-    "password": "Contraseña123!",
-    "name": "Nombre Usuario",
-    "phoneNumber": "+1234567890"
-  }
-  ```
+### Usuarios
+- GET /users/profile - Obtener perfil de usuario
+- PUT /users/profile - Actualizar perfil de usuario
 
-- **Login**: `POST /auth/login`
-  ```json
-  {
-    "email": "usuario@ejemplo.com",
-    "password": "Contraseña123!"
-  }
-  ```
+### API Hello (ejemplo)
+- GET /hello - Endpoint básico de prueba
 
-### Perfil de usuario
+### Cultivos
+- POST /crops - Crear cultivo
+- GET /crops/{cropId} - Obtener cultivo por ID
+- GET /users/{userId}/crops - Obtener cultivos por usuario
+- PUT /crops/{cropId} - Actualizar cultivo
+- DELETE /crops/{cropId} - Eliminar cultivo
+- GET /crops/type/{cropType} - Obtener cultivos por tipo
 
-- **Obtener perfil**: `GET /users/profile`
-  - Headers: `Authorization: Bearer {token}`
+## Despliegue en AWS
 
-- **Actualizar perfil**: `PUT /users/profile`
-  - Headers: `Authorization: Bearer {token}`
-  ```json
-  {
-    "name": "Nuevo Nombre",
-    "phoneNumber": "+0987654321"
-  }
-  ```
-
-## Pruebas
-
-### Con Postman
-
-1. Inicia el servidor local (`npm run dev`)
-2. Importa la colección de Postman (disponible en `/docs/postman-collection.json`)
-3. Prueba los endpoints
-
-### Con curl
+Para desplegar en AWS:
 
 ```bash
-# Verificar que el servidor esté funcionando
-curl http://localhost:3000/health
+npm run deploy
+```
 
-# Registrar un usuario
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "password": "Test123!", "name": "Test User"}'
+## Limpieza
 
-# Iniciar sesión
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "password": "Test123!"}'
+Para detener DynamoDB local:
 
-# Obtener el perfil (reemplaza {token} con el token obtenido en el login)
-curl -X GET http://localhost:3000/users/profile \
-  -H "Authorization: Bearer {token}"
+```bash
+docker-compose down
+```
+
+Para eliminar las tablas:
+
+```bash
+node scripts/create-tables.js delete
 ``` 

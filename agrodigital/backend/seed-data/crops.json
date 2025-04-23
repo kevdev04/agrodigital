@@ -1,0 +1,41 @@
+[
+    {
+        "cropId": "crop-001",
+        "userId": "user123",
+        "name": "Maíz Amarillo",
+        "cropType": "Maíz",
+        "plantDate": "2023-04-15",
+        "location": "Parcela Norte",
+        "area": 5.2,
+        "status": "active",
+        "notes": "Variedad resistente a sequía",
+        "createdAt": "2023-05-12T15:30:45.123Z",
+        "updatedAt": "2023-05-12T15:30:45.123Z"
+    },
+    {
+        "cropId": "crop-002",
+        "userId": "user123",
+        "name": "Frijol Negro",
+        "cropType": "Frijol",
+        "plantDate": "2023-03-10",
+        "location": "Parcela Sur",
+        "area": 3.5,
+        "status": "harvested",
+        "notes": "Cultivo finalizado",
+        "createdAt": "2023-03-05T10:15:30.456Z",
+        "updatedAt": "2023-06-20T14:25:10.789Z"
+    },
+    {
+        "cropId": "crop-003",
+        "userId": "user456",
+        "name": "Maíz Blanco",
+        "cropType": "Maíz",
+        "plantDate": "2023-02-20",
+        "location": "Parcela Este",
+        "area": 4.0,
+        "status": "active",
+        "notes": "Cultivo experimental",
+        "createdAt": "2023-02-15T11:20:35.789Z",
+        "updatedAt": "2023-02-15T11:20:35.789Z"
+    }
+]

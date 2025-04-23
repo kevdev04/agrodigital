@@ -8,6 +8,9 @@
     "deploy": "serverless deploy",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
+    "install-dynamodb": "serverless dynamodb install",
+    "start-dynamodb": "serverless dynamodb start",
+    "start-full": "serverless dynamodb start --migrate && serverless offline start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -22,6 +25,9 @@
     "joi": "^17.13.3",
     "serverless-offline": "^14.4.0",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "serverless-dynamodb-local": "^1.0.2"
   },
   "description": ""
 }
