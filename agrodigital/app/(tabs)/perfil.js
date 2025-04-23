@@ -3,8 +3,16 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function PerfilScreen() {
+    const router = useRouter();
+    
+    const handleLogout = () => {
+        // Navigate to the welcome screen (root index.tsx)
+        router.replace('/index');
+    };
+    
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -52,7 +60,7 @@ export default function PerfilScreen() {
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.logoutButton}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                 <Feather name="log-out" size={20} color="white" />
                 <Text style={styles.logoutText}>Cerrar Sesión</Text>
             </TouchableOpacity>

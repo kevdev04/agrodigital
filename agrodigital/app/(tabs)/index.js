@@ -115,7 +115,7 @@ export default function HomeScreen() {
           {/* Crops Card */}
           <View style={[styles.card, styles.halfCard]}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Cultivos</Text>
+              <Text style={styles.cardTitle}>Financiamientos</Text>
               <Feather name="leaf" size={20} color={COLOR_PRIMARY} />
             </View>
             

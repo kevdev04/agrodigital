@@ -92,7 +92,7 @@ export default function CultivosScreen() {
           onPress={() => router.push('/screens/RegistroTerrenoScreen')}
         >
           <Feather name="plus-circle" size={40} color="#9ca3af" />
-          <Text style={styles.registerTitle}>Registrar Nuevo Cultivo</Text>
+          <Text style={styles.registerTitle}>Solicitar Financiamiento</Text>
           <Text style={styles.registerSubtitle}>Añade información sobre tu nuevo cultivo</Text>
         </TouchableOpacity>
         

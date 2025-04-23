@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,6 +12,8 @@ import {
   Modal,
   FlatList,
   ActivityIndicator, // Import ActivityIndicator
+  Linking,
+  Dimensions, // Add Dimensions to get screen size
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,11 +30,13 @@ import {
   Mic, // Using Mic icon for voice assistant
   CheckSquare, // Example for Checkbox checked
   Square, // Example for Checkbox unchecked
+  X,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router'; // Import useRouter
 import { Audio } from 'expo-av'; // Import Audio from expo-av
+import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
 import { userService } from '../../api/userService';
 
 // --- Constants for colors not defined in Colors.ts ---
@@ -53,7 +57,8 @@ interface FormData {
   birthState: string;
   birthDate: string;
   gender: string;
-  inePhoto: { uri: string | null } | null; // Use object for image data
+  inePhotoFront: { uri: string | null } | null;
+  inePhotoBack: { uri: string | null } | null; // Adding back photo
 }
 
 interface InputFieldProps {
@@ -239,43 +244,77 @@ export default function RegistroUsuarioScreen() {
     birthState: '',
     birthDate: '',
     gender: '',
-    inePhoto: null,
+    inePhotoFront: null,
+    inePhotoBack: null, // Initialize back photo as null
   });
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreviewFront, setPhotoPreviewFront] = useState<string | null>(null);
+  const [photoPreviewBack, setPhotoPreviewBack] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showErrorMessage, setShowErrorMessage] = useState(false);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [capturingFront, setCapturingFront] = useState(true); // Track which side we're capturing
+
+  // Request camera permissions on component mount
+  useEffect(() => {
+    (async () => {
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      setCameraPermission(cameraStatus.status === 'granted');
+    })();
+  }, []);
 
   const handleChange = (field: keyof FormData, value: string | { uri: string | null } | null) => {
      // Type assertion needed because state setter expects specific value types
-     if (field === 'inePhoto') {
+     if (field === 'inePhotoFront' || field === 'inePhotoBack') {
         setFormData({ ...formData, [field]: value as { uri: string | null } | null });
      } else {
         setFormData({ ...formData, [field]: value as string });
      }
   };
 
-  const handlePhotoCapture = async () => {
-    // Placeholder: In a real app, use expo-image-picker
-    Alert.alert("Simulación", "Aquí se abriría la cámara o galería.");
-    // Simulate picking an image
-    const mockPhoto = { uri: 'https://via.placeholder.com/300x200.png?text=INE+Placeholder' };
-    setPhotoPreview(mockPhoto.uri);
-    handleChange('inePhoto', mockPhoto);
-
-    /* --- Example using expo-image-picker (needs installation and permissions) ---
-    let result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setPhotoPreview(result.assets[0].uri);
-      handleChange('inePhoto', { uri: result.assets[0].uri });
+  const handlePhotoCapture = async (side: 'front' | 'back') => {
+    if (!cameraPermission) {
+      Alert.alert(
+        'Permiso requerido', 
+        'Necesitamos permiso para acceder a tu cámara',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Configuración', 
+            onPress: () => Platform.OS === 'ios' 
+              ? Linking.openURL('app-settings:') 
+              : Linking.openSettings() 
+          }
+        ]
+      );
+      return;
     }
-    */
+    
+    try {
+      // Set which side we're capturing
+      setCapturingFront(side === 'front');
+      
+      // Launch the camera directly with ImagePicker
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+      
+      if (!result.canceled) {
+        if (side === 'front') {
+          setPhotoPreviewFront(result.assets[0].uri);
+          handleChange('inePhotoFront', { uri: result.assets[0].uri });
+        } else {
+          setPhotoPreviewBack(result.assets[0].uri);
+          handleChange('inePhotoBack', { uri: result.assets[0].uri });
+        }
+      }
+    } catch (error) {
+      console.error('Error capturando foto:', error);
+      Alert.alert('Error', 'No se pudo tomar la foto.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -285,7 +324,7 @@ export default function RegistroUsuarioScreen() {
     setIsLoading(true);
 
     // Validate form
-    const requiredFields: Array<keyof FormData> = ['fullName', 'phone', 'address', 'birthState', 'birthDate', 'gender', 'inePhoto'];
+    const requiredFields: Array<keyof FormData> = ['fullName', 'phone', 'address', 'birthState', 'birthDate', 'gender', 'inePhotoFront', 'inePhotoBack'];
     const isFilled = requiredFields.every(field => Boolean(formData[field]));
 
     try {
@@ -312,25 +351,18 @@ export default function RegistroUsuarioScreen() {
         const response = await userService.register(userData);
         console.log("Usuario registrado exitosamente:", response.data);
         
-        // Preparar la navegación a la pantalla de éxito con los datos del usuario
+        // Navegar a la pantalla de verificación SMS
         try {
-          // @ts-ignore - Ignorar errores de tipo en la navegación
-          router.navigate({
-            pathname: "/screens/Historial",
+          router.push({
+            pathname: "/screens/VerificacionSMSScreen",
             params: {
-              fullName: formData.fullName,
-              phone: formData.phone,
-              address: formData.address,
-              birthState: formData.birthState,
-              birthDate: formData.birthDate,
-              gender: formData.gender
+              phone: formData.phone
             }
           });
         } catch (error) {
           console.error("Error en navegación:", error);
           
           // Como alternativa, navegar directamente a las pestañas
-          // @ts-ignore
           router.replace("/(tabs)");
         }
       } else {
@@ -547,30 +579,33 @@ export default function RegistroUsuarioScreen() {
               placeholder="Selecciona una opción"
             />
 
-            {/* INE Photo Section */}
+            {/* INE Photo Section - Updated for front and back */}
             <View style={styles.inputContainer}>
-                 <View style={styles.labelContainer}>
-                    <Text style={styles.labelText}>
-                    Credencial INE
-                    <Text style={styles.requiredAsterisk}>*</Text>
-                    </Text>
-                    <TouchableOpacity
-                        onPress={() => Alert.alert('Info INE', 'Toma una foto clara del frente de tu credencial de elector')}
-                        style={styles.hintButton}>
-                        <Info size={16} color={COLOR_GRAY} />
-                    </TouchableOpacity>
-                </View>
+              <View style={styles.labelContainer}>
+                <Text style={styles.labelText}>
+                  Credencial INE
+                  <Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={() => Alert.alert('Info INE', 'Necesitamos ambos lados de tu credencial de elector')}
+                  style={styles.hintButton}>
+                  <Info size={16} color={COLOR_GRAY} />
+                </TouchableOpacity>
+              </View>
 
-                {photoPreview ? (
+              {/* Front of INE */}
+              <View style={styles.inePhotoContainer}>
+                <Text style={styles.inePhotoLabel}>Frente de la INE:</Text>
+                {photoPreviewFront ? (
                   <View style={styles.photoPreviewContainer}>
                     <Image
-                      source={{ uri: photoPreview }}
+                      source={{ uri: photoPreviewFront }}
                       style={styles.photoPreviewImage}
                       resizeMode="cover"
                     />
                     <TouchableOpacity
                       style={styles.retakePhotoButton}
-                      onPress={!isLoading ? handlePhotoCapture : undefined} // Disable if loading
+                      onPress={() => !isLoading && handlePhotoCapture('front')}
                       disabled={isLoading}>
                       <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
                     </TouchableOpacity>
@@ -578,17 +613,55 @@ export default function RegistroUsuarioScreen() {
                 ) : (
                   <TouchableOpacity
                     style={styles.takePhotoButton}
-                    onPress={!isLoading ? handlePhotoCapture : undefined} // Disable if loading
+                    onPress={() => !isLoading && handlePhotoCapture('front')}
                     disabled={isLoading}>
                     <View style={styles.takePhotoButtonIconBg}>
                       <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
                     </View>
-                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>Tomar foto de INE</Text>
+                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                      Tomar foto del frente
+                    </Text>
                     <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
                       Asegúrate de que todos los datos sean legibles
                     </Text>
                   </TouchableOpacity>
                 )}
+              </View>
+
+              {/* Back of INE */}
+              <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
+                <Text style={styles.inePhotoLabel}>Reverso de la INE:</Text>
+                {photoPreviewBack ? (
+                  <View style={styles.photoPreviewContainer}>
+                    <Image
+                      source={{ uri: photoPreviewBack }}
+                      style={styles.photoPreviewImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.retakePhotoButton}
+                      onPress={() => !isLoading && handlePhotoCapture('back')}
+                      disabled={isLoading}>
+                      <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.takePhotoButton}
+                    onPress={() => !isLoading && handlePhotoCapture('back')}
+                    disabled={isLoading}>
+                    <View style={styles.takePhotoButtonIconBg}>
+                      <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                    </View>
+                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                      Tomar foto del reverso
+                    </Text>
+                    <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
+                      Asegúrate de que todos los datos sean legibles
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Terms and Conditions */}
@@ -857,56 +930,61 @@ const styles = StyleSheet.create({
       fontSize: 16,
       fontWeight: 'bold',
   },
+  photoButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   takePhotoButton: {
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      padding: 24, // Match p-6
-      backgroundColor: '#fff',
-      borderWidth: 1, // Dashed border isn't directly supported, use solid
-      borderStyle: 'dashed', // Note: Dashed might only work well on iOS
-      borderColor: COLOR_BORDER,
-      borderRadius: 12, // rounded-xl
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 24, // Match p-6
+    backgroundColor: '#fff',
+    borderWidth: 1, // Dashed border isn't directly supported, use solid
+    borderStyle: 'dashed', // Note: Dashed might only work well on iOS
+    borderColor: COLOR_BORDER,
+    borderRadius: 12, // rounded-xl
   },
   takePhotoButtonIconBg: {
-      backgroundColor: Colors.light.tint, // Use tint directly
-      padding: 12, // p-3
-      borderRadius: 999, // rounded-full
+    backgroundColor: Colors.light.tint, // Use tint directly
+    padding: 12, // p-3
+    borderRadius: 999, // rounded-full
   },
   takePhotoButtonText: {
-      color: COLOR_PRIMARY,
-      fontWeight: '500', // font-medium
-      fontSize: 16,
+    color: COLOR_PRIMARY,
+    fontWeight: '500', // font-medium
+    fontSize: 16,
   },
   takePhotoButtonHint: {
-      fontSize: 12, // text-sm
-      color: COLOR_TEXT_SECONDARY,
-      textAlign: 'center',
+    fontSize: 12, // text-sm
+    color: COLOR_TEXT_SECONDARY,
+    textAlign: 'center',
   },
   photoPreviewContainer: {
-      position: 'relative', // Needed for absolute positioning of button
+    position: 'relative', // Needed for absolute positioning of button
   },
   photoPreviewImage: {
-      width: '100%',
-      height: 192, // Match h-48
-      borderRadius: 12, // rounded-xl
-      borderWidth: 1, // border-2 (use 1 or 2)
-      borderColor: COLOR_PRIMARY,
+    width: '100%',
+    height: 192, // Match h-48
+    borderRadius: 12, // rounded-xl
+    borderWidth: 1, // border-2 (use 1 or 2)
+    borderColor: COLOR_PRIMARY,
   },
   retakePhotoButton: {
-      position: 'absolute',
-      bottom: 12, // bottom-3
-      right: 12, // right-3
-      backgroundColor: '#fff',
-      borderRadius: 999, // rounded-full
-      padding: 8, // p-2
-      // Add shadow
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 2,
-      elevation: 3,
+    position: 'absolute',
+    bottom: 12, // bottom-3
+    right: 12, // right-3
+    backgroundColor: '#fff',
+    borderRadius: 999, // rounded-full
+    padding: 8, // p-2
+    // Add shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   termsContainer: {
     flexDirection: 'row',
@@ -928,7 +1006,7 @@ const styles = StyleSheet.create({
     fontWeight: '500', // font-medium
   },
   disabledText: { // Style for disabled text/links
-      opacity: 0.5,
+    opacity: 0.5,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -950,24 +1028,24 @@ const styles = StyleSheet.create({
     color: COLOR_ERROR,
   },
   submitButton: {
-      borderRadius: 12, // rounded-xl
-      overflow: 'hidden', // Clip gradient to border radius
-      // Add shadow
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-      elevation: 4,
+    borderRadius: 12, // rounded-xl
+    overflow: 'hidden', // Clip gradient to border radius
+    // Add shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
   submitButtonDisabled: { // Style for disabled button
     opacity: 0.6,
   },
   submitButtonGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 16, // Match py-4
-      width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16, // Match py-4
+    width: '100%',
   },
   submitButtonText: {
     color: '#fff',
@@ -984,5 +1062,15 @@ const styles = StyleSheet.create({
     color: COLOR_TEXT_SECONDARY,
     paddingHorizontal: 24, // px-6
     marginTop: 16, // Add some space above footer text
+  },
+  // Styles for the INE photo containers
+  inePhotoContainer: {
+    width: '100%',
+  },
+  inePhotoLabel: {
+    fontSize: 14,
+    color: COLOR_TEXT_SECONDARY,
+    marginBottom: 8,
+    fontWeight: '500',
   },
 }); 
