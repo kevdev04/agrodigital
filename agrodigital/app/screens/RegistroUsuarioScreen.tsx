@@ -33,6 +33,7 @@ import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router'; // Import useRouter
 import { Audio } from 'expo-av'; // Import Audio from expo-av
+import { userService } from '../../api/userService';
 
 // --- Constants for colors not defined in Colors.ts ---
 const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
@@ -277,7 +278,7 @@ export default function RegistroUsuarioScreen() {
     */
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Hide previous error messages
     setShowErrorMessage(false);
     // Start loading
@@ -287,31 +288,64 @@ export default function RegistroUsuarioScreen() {
     const requiredFields: Array<keyof FormData> = ['fullName', 'phone', 'address', 'birthState', 'birthDate', 'gender', 'inePhoto'];
     const isFilled = requiredFields.every(field => Boolean(formData[field]));
 
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
       if (isFilled && agreedToTerms) {
-        console.log("Form Data Submitted:", formData);
-        // Mostrar mensaje de éxito
-        Alert.alert(
-          "Registro exitoso",
-          "Tu perfil ha sido creado correctamente. Ahora puedes acceder a todas las funciones de AgroDigital.",
-          [
-            {
-              text: "Continuar",
-              onPress: () => {
-                // Navegar al sistema de pestañas después del registro exitoso
-                router.replace('/(tabs)');
-              }
+        console.log("Preparando datos para registro:", formData);
+        
+        // Crear objeto con los datos del usuario para enviar a la API
+        const userData = {
+          userId: `user-${Date.now()}`,  // Generar un ID único
+          fullName: formData.fullName,
+          email: `${formData.fullName.replace(/\s+/g, '').toLowerCase()}@ejemplo.com`, // Email provisional
+          password: "Password123!", // Contraseña provisional
+          phone: formData.phone,
+          address: formData.address,
+          birthState: formData.birthState,
+          birthDate: formData.birthDate,
+          gender: formData.gender,
+          createdAt: new Date().toISOString()
+        };
+        
+        console.log("Enviando datos de usuario:", userData);
+        
+        // Llamar a la API para registrar el usuario
+        const response = await userService.register(userData);
+        console.log("Usuario registrado exitosamente:", response.data);
+        
+        // Preparar la navegación a la pantalla de éxito con los datos del usuario
+        try {
+          // @ts-ignore - Ignorar errores de tipo en la navegación
+          router.navigate({
+            pathname: "/screens/RegistroExitosoScreen",
+            params: {
+              fullName: formData.fullName,
+              phone: formData.phone,
+              address: formData.address,
+              birthState: formData.birthState,
+              birthDate: formData.birthDate,
+              gender: formData.gender
             }
-          ]
-        );
+          });
+        } catch (error) {
+          console.error("Error en navegación:", error);
+          
+          // Como alternativa, navegar directamente a las pestañas
+          // @ts-ignore
+          router.replace("/(tabs)");
+        }
       } else {
         setShowErrorMessage(true);
-        setIsLoading(false); // Stop loading on validation failure
-        // Optional: Scroll to error message or first invalid field
       }
-      // Remove the timeout in real implementation and handle loading state based on API response
-    }, 1500); // Simulate 1.5 second delay
+    } catch (error) {
+      console.error("Error al registrar usuario:", error);
+      Alert.alert(
+        "Error",
+        "Hubo un problema al registrar tu perfil. Por favor intenta de nuevo más tarde."
+      );
+      setShowErrorMessage(true);
+    } finally {
+      setIsLoading(false); // Stop loading
+    }
   };
 
   const states: SelectOption[] = [
