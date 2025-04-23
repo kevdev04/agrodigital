@@ -1,0 +1,193 @@
+# serverless.yml
+service: agrodigital-backend
+
+custom:
+  userPoolId: "us-east-1_ThBKmn221"  # Cambiar con tu User Pool ID
+  userPoolClientId: "58ki6vk7sf7k8cg275ra27uj7m" # Cambiar con tu App Client ID
+  userTable: "AgroDigital-Users"
+  cropsTable: "AgroDigital-Crops"  # Nueva tabla para cultivos
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  accountId: "195232097077"  # Tu ID de cuenta de AWS
+  # Configuración DynamoDB Local
+  dynamodb:
+    stages:
+      - dev
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+    seed:
+      domain:
+        sources:
+          - table: ${self:custom.userTable}
+            sources: [./seed-data/users.json]
+          - table: ${self:custom.cropsTable}
+            sources: [./seed-data/crops.json]
+  
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${self:custom.region}
+  stage: ${self:custom.stage}
+  environment:
+    USER_POOL_ID: ${self:custom.userPoolId}
+    USER_POOL_CLIENT_ID: ${self:custom.userPoolClientId}
+    USER_TABLE: ${self:custom.userTable}
+    CROPS_TABLE: ${self:custom.cropsTable}  # Añadido variable de entorno
+    STAGE: ${self:custom.stage}
+    IS_OFFLINE: true  # Para identificar entorno local
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:*
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.userTable}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.cropsTable}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.cropsTable}/index/*"
+    - Effect: Allow
+      Action:
+        - cognito-idp:*
+      Resource: "arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}"
+
+package:
+  patterns:
+    - '!.env*'
+    - '!node_modules/.cache/**'
+
+functions:
+  register:
+    handler: functions/auth/register.handler
+    events:
+      - http:
+          path: auth/register
+          method: post
+          cors: true
+  login:
+    handler: functions/auth/login.handler
+    events:
+      - http:
+          path: auth/login
+          method: post
+          cors: true
+  getProfile:
+    handler: functions/users/profile.getProfile
+    events:
+      - http:
+          path: users/profile
+          method: get
+          cors: true
+  updateProfile:
+    handler: functions/users/profile.updateProfile
+    events:
+      - http:
+          path: users/profile
+          method: put
+          cors: true
+  helloApi:
+    handler: functions/hello/index.handler
+    events:
+      - http:
+          path: hello
+          method: get
+          cors: true
+  
+  # Endpoints para cultivos
+  createCrop:
+    handler: functions/crops/index.createCrop
+    events:
+      - http:
+          path: crops
+          method: post
+          cors: true
+  getCrop:
+    handler: functions/crops/index.getCrop
+    events:
+      - http:
+          path: crops/{cropId}
+          method: get
+          cors: true
+  getUserCrops:
+    handler: functions/crops/index.getUserCrops
+    events:
+      - http:
+          path: users/{userId}/crops
+          method: get
+          cors: true
+  updateCrop:
+    handler: functions/crops/index.updateCrop
+    events:
+      - http:
+          path: crops/{cropId}
+          method: put
+          cors: true
+  deleteCrop:
+    handler: functions/crops/index.deleteCrop
+    events:
+      - http:
+          path: crops/{cropId}
+          method: delete
+          cors: true
+  getCropsByType:
+    handler: functions/crops/index.getCropsByType
+    events:
+      - http:
+          path: crops/type/{cropType}
+          method: get
+          cors: true
+
+plugins:
+  - serverless-offline
+  - serverless-dynamodb-local
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.userTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: email-index
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+    
+    CropsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.cropsTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: cropId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: cropType
+            AttributeType: S
+        KeySchema:
+          - AttributeName: cropId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: cropType-index
+            KeySchema:
+              - AttributeName: cropType
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL

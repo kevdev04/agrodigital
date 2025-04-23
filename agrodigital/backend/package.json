@@ -1,0 +1,33 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "serverless offline start",
+    "dev": "node local-server.js",
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "install-dynamodb": "serverless dynamodb install",
+    "start-dynamodb": "serverless dynamodb start",
+    "start-full": "serverless dynamodb start --migrate && serverless offline start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "joi": "^17.13.3",
+    "serverless-offline": "^14.4.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "serverless-dynamodb-local": "^1.0.2"
+  },
+  "description": ""
+}
