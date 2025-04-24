@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, Text, Alert } from 'react-native';
+import { StyleSheet, View, Image, TouchableOpacity, Text } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
-import { useRouter } from 'expo-router';
+import { useRouter, Href } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -20,10 +20,14 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
 
-  const handleStart = () => {
+  const handleRegistrarse = () => {
     player.pause();
-    // Navegar al formulario de registro primero
-    router.replace('/screens/RegistroUsuarioScreen');
+    router.push('/screens/RegistroUsuarioScreen' as any);
+  };
+
+  const handleIniciarSesion = () => {
+    player.pause();
+    router.push('/screens/IniciarSesionScreen' as any);
   };
 
   React.useEffect(() => {
@@ -62,9 +66,14 @@ export default function WelcomeScreen() {
             ¡Cosechamos Progreso!
           </ThemedText>
         </View>
-        <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50' }]} onPress={handleStart}>
-          <Text style={styles.buttonText}>Comenzar</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50' }]} onPress={handleIniciarSesion}>
+            <Text style={styles.buttonText}>Iniciar Sesión</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.button, { backgroundColor: '#006400' }]} onPress={handleRegistrarse}>
+            <Text style={styles.buttonText}>Registrarse</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -107,15 +116,17 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  buttonContainer: {
+    width: '100%',
+    gap: 15,
+  },
   button: {
     width: '100%',
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    backgroundColor: '#006400',
+    marginBottom: 5,
   },
   buttonText: {
     color: '#ffffff',

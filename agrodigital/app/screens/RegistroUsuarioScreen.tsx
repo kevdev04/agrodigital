@@ -39,8 +39,7 @@ import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
 import { useUser } from '@/contexts/UserContext';
 
-// --- Constants for colors not defined in Colors.ts ---
-const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
+const COLOR_GRAY = Colors.light.icon; 
 const COLOR_PRIMARY = Colors.light.tint;
 const COLOR_BORDER = '#E5E7EB'; // Light gray for borders
 const COLOR_ERROR = '#DC3545'; // Standard red for errors
@@ -488,7 +487,7 @@ export default function RegistroUsuarioScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContentContainer}
@@ -504,21 +503,23 @@ export default function RegistroUsuarioScreen() {
         )}
 
         {/* Header with gradient */}
-        <LinearGradient
-          colors={[COLOR_PRIMARY, COLOR_PRIMARY]} // Using tint twice for now, adjust if a darker shade is added
-          style={styles.header}>
-          <TouchableOpacity
-            style={styles.voiceAssistantButton}
-            onPress={playInstructions}>
-            <Text style={styles.voiceAssistantText}>
-              {isPlaying ? 'Detener instrucciones' : 'Activar instrucciones por voz'}
-            </Text>
-            <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Registro de Agricultor
-          </ThemedText>
-        </LinearGradient>
+        <View style={styles.headerContainer}>
+          <LinearGradient
+            colors={[COLOR_PRIMARY, COLOR_PRIMARY]} // Using tint twice for now, adjust if a darker shade is added
+            style={styles.header}>
+            <TouchableOpacity
+              style={styles.voiceAssistantButton}
+              onPress={playInstructions}>
+              <Text style={styles.voiceAssistantText}>
+                {isPlaying ? 'Detener instrucciones' : 'Activar instrucciones por voz'}
+              </Text>
+              <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
+            </TouchableOpacity>
+            <ThemedText type="title" style={styles.headerTitle}>
+              Registro de Agricultor
+            </ThemedText>
+          </LinearGradient>
+        </View>
 
         {/* Main form */}
         <View style={styles.formContainer}>
@@ -728,34 +729,43 @@ export default function RegistroUsuarioScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: COLOR_PRIMARY, // Match header color for status bar area
   },
   container: {
     flex: 1,
+    backgroundColor: Colors.light.background,
   },
   scrollContentContainer: {
-      paddingBottom: 40, // Ensure space at the bottom
+    paddingBottom: 40, // Ensure space at the bottom
+    paddingHorizontal: 0, // No horizontal padding
   },
   // --- Loading Overlay Styles --- 
   loadingOverlay: {
-      ...StyleSheet.absoluteFillObject, // Cover entire screen
-      backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000, // Ensure it's on top
+    ...StyleSheet.absoluteFillObject, // Cover entire screen
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000, // Ensure it's on top
   },
   loadingText: {
-      marginTop: 10,
-      fontSize: 16,
-      color: COLOR_PRIMARY,
-      fontWeight: '500',
+    marginTop: 10,
+    fontSize: 16,
+    color: COLOR_PRIMARY,
+    fontWeight: '500',
   },
   // --- End Loading Overlay Styles --- 
+  headerContainer: {
+    width: '100%',
+    overflow: 'hidden',
+  },
   header: {
     paddingTop: 30, // Adjust as needed for status bar height
     paddingBottom: 40, // Increased padding below header content
-    paddingHorizontal: 16,
+    paddingHorizontal: 0, // Remove horizontal padding
     alignItems: 'center', // Center items horizontally
+    width: '100%', // Ensure full width
+    left: 0,
+    right: 0,
   },
   voiceAssistantButton: {
     flexDirection: 'row',
@@ -788,6 +798,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 24, // Add padding inside the container
     zIndex: 10,
+    marginHorizontal: 0, // Ensure no horizontal margin
   },
   formInnerContainer: {
     backgroundColor: '#fff', // White card background
