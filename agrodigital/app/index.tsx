@@ -107,27 +107,15 @@ export default function WelcomeScreen() {
             <ThemedText style={styles.sloganSecondary} type="title">
               ¡Cosechamos Progreso!
             </ThemedText>
-            <View style={styles.taglineContainer}>
-              <Text style={styles.tagline}>
-                Buscamos Impulsar la Agricultura en México
-              </Text>
-            </View>
           </View>
         </Animated.View>
         <Animated.View style={[styles.buttonContainer, { opacity: fadeAnim }]}>
           <TouchableOpacity 
-            style={styles.primaryButton} 
+            style={styles.secondaryButton} 
             onPress={handleIniciarSesion}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={['#4CAF50', '#3E8E41']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
-            </LinearGradient>
+            <Text style={styles.secondaryButtonText}>Iniciar Sesión</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.secondaryButton} 
@@ -166,19 +154,18 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   flexSpacer: {
-    flex: 0.15,
+    flex: 0.1,
   },
   contentContainer: {
-    flex: 0.7,
+    flex: 0.8,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingTop: 0,
   },
   logo: {
-    width: width * 0.85,
-    height: height * 0.22,
-    marginBottom: height * 0.04,
+    width: width * 0.9,
+    height: height * 0.3,
+    marginBottom: height * 0.05,
   },
   titleContainer: {
     alignItems: 'center',
@@ -187,78 +174,39 @@ const styles = StyleSheet.create({
   },
   slogan: {
     color: '#ffffff',
-    fontSize: Math.min(width * 0.08, 36),
+    fontSize: Math.min(width * 0.085, 38),
     fontWeight: 'bold',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
     letterSpacing: 0.5,
-    marginBottom: height * 0.01,
+    marginBottom: height * 0.015,
   },
   sloganSecondary: {
     color: '#ffffff',
-    fontSize: Math.min(width * 0.07, 34),
+    fontSize: Math.min(width * 0.075, 36),
     fontWeight: 'bold',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
-    letterSpacing: 0.5,
-  },
-  taglineContainer: {
-    marginTop: height * 0.03,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 30,
-    maxWidth: width * 0.85,
-  },
-  tagline: {
-    color: '#ffffff',
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '400',
     letterSpacing: 0.5,
   },
   buttonContainer: {
     width: '100%',
-    marginTop: height * 0.05,
-  },
-  primaryButton: {
-    width: '100%',
-    height: 58,
-    borderRadius: 29,
-    overflow: 'hidden',
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.5,
-  },
-  buttonGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    marginTop: height * 0.02,
+    gap: 16,
   },
   secondaryButton: {
     width: '100%',
-    height: 56,
-    borderRadius: 28,
+    height: 58,
+    borderRadius: 29,
     borderWidth: 2,
     borderColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginBottom: 8,
   },
   secondaryButtonText: {
     color: '#ffffff',
