@@ -48,19 +48,16 @@ This guide will help you set up AWS Cognito authentication for your AgroDigital 
    cp example.env .env
    ```
 
-2. Open the `aws-exports.js` file and update it with your Cognito information:
-   ```javascript
-   const awsConfig = {
-     Auth: {
-       region: 'YOUR_REGION', // e.g., 'us-east-1'
-       userPoolId: 'YOUR_USER_POOL_ID',
-       userPoolWebClientId: 'YOUR_CLIENT_ID',
-       authenticationFlowType: 'USER_PASSWORD_AUTH',
-     }
-   };
+2. Open the .env file and update it with your Cognito information:
+   ```
+   EXPO_PUBLIC_AWS_REGION=us-east-1  # Your actual region
+   EXPO_PUBLIC_AWS_USER_POOL_ID=us-east-1_xxxxxxxx  # Your actual pool ID
+   EXPO_PUBLIC_AWS_USER_POOL_WEB_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx  # Your actual client ID
    ```
 
 3. Set `EXPO_PUBLIC_USE_COGNITO=true` in your .env file to enable Cognito authentication
+
+The aws-exports.js file will automatically use these environment variables.
 
 ## Step 3: Configure User Pool Attributes
 
