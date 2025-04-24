@@ -71,6 +71,7 @@ interface InputFieldProps {
   maxLength?: number;
   required?: boolean;
   hint?: string;
+  numbersOnly?: boolean;
 }
 
 function InputField({
@@ -83,13 +84,29 @@ function InputField({
   maxLength,
   required = true,
   hint,
+  numbersOnly = false,
 }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const handleHint = () => {
       if (hint) {
         Alert.alert('Información', hint);
       }
+  };
+
+  const handleTextChange = (text: string) => {
+    // If numbersOnly is true, filter out non-numeric characters
+    if (numbersOnly) {
+      const numericValue = text.replace(/[^0-9]/g, '');
+      onChange(numericValue);
+    } else {
+      onChange(text);
+    }
+  };
+
+  const handlePress = () => {
+    inputRef.current?.focus();
   };
 
   return (
@@ -105,29 +122,214 @@ function InputField({
           </TouchableOpacity>
         )}
       </View>
-      <View style={[
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        style={[
           styles.inputWrapper,
           focused ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
-      ]}>
+        ]}
+      >
         <View style={styles.iconWrapper}>{icon}</View>
         <TextInput
+          ref={inputRef}
           style={styles.textInput}
           value={value}
-          onChangeText={onChange}
+          onChangeText={handleTextChange}
           placeholder={placeholder}
           placeholderTextColor={COLOR_GRAY}
-          keyboardType={keyboardType}
+          keyboardType={numbersOnly ? 'numeric' : keyboardType}
           maxLength={maxLength}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          // secureTextEntry={type === 'password'} // Add if needed
         />
         {value ? (
           <View style={styles.checkWrapper}>
             <Check size={18} color={COLOR_PRIMARY} />
           </View>
         ) : null}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// New component for date input with DD/MM/YYYY format
+interface DateInputFieldProps {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  required?: boolean;
+  hint?: string;
+}
+
+function DateInputField({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  required = true,
+  hint,
+}: DateInputFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  
+  const dayRef = useRef<TextInput>(null);
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
+
+  // Update internal state when the value changes
+  useEffect(() => {
+    if (value) {
+      const parts = value.split('/');
+      if (parts.length === 3) {
+        setDay(parts[0]);
+        setMonth(parts[1]);
+        setYear(parts[2]);
+      }
+    }
+  }, []);
+
+  const handleHint = () => {
+    if (hint) {
+      Alert.alert('Información', hint);
+    }
+  };
+
+  const updateFormattedDate = (newDay: string, newMonth: string, newYear: string) => {
+    const formattedDate = `${newDay}${newDay ? '/' : ''}${newMonth}${newMonth ? '/' : ''}${newYear}`;
+    onChange(formattedDate.replace(/\/$/, '')); // Remove trailing slash if exists
+  };
+
+  const handleDayChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setDay(numericValue);
+    
+    if (numericValue.length === 2) {
+      monthRef.current?.focus();
+    }
+    
+    updateFormattedDate(numericValue, month, year);
+  };
+
+  const handleMonthChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setMonth(numericValue);
+    
+    if (numericValue.length === 2) {
+      yearRef.current?.focus();
+    }
+    
+    updateFormattedDate(day, numericValue, year);
+  };
+
+  const handleYearChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setYear(numericValue);
+    updateFormattedDate(day, month, numericValue);
+  };
+
+  const handleDayKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && day === '') {
+      // No action needed, already at first field
+    }
+  };
+
+  const handleMonthKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && month === '') {
+      dayRef.current?.focus();
+    }
+  };
+
+  const handleYearKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && year === '') {
+      monthRef.current?.focus();
+    }
+  };
+
+  const handlePress = () => {
+    // Always focus on the day field first
+    dayRef.current?.focus();
+  };
+
+  return (
+    <View style={styles.inputContainer}>
+      <View style={styles.labelContainer}>
+        <Text style={styles.labelText}>
+          {label}
+          {required && <Text style={styles.requiredAsterisk}>*</Text>}
+        </Text>
+        {hint && (
+          <TouchableOpacity onPress={handleHint} style={styles.hintButton}>
+            <Info size={16} color={COLOR_GRAY} />
+          </TouchableOpacity>
+        )}
       </View>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        style={[
+          styles.inputWrapper,
+          focused ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
+        ]}
+      >
+        <View style={styles.iconWrapper}>{icon}</View>
+        <View style={styles.dateInputContainer}>
+          <TextInput
+            ref={dayRef}
+            style={styles.dateInput}
+            value={day}
+            onChangeText={handleDayChange}
+            placeholder="DD"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={2}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleDayKeyPress}
+          />
+          <Text style={styles.dateInputSeparator}>/</Text>
+          <TextInput
+            ref={monthRef}
+            style={styles.dateInput}
+            value={month}
+            onChangeText={handleMonthChange}
+            placeholder="MM"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={2}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleMonthKeyPress}
+          />
+          <Text style={styles.dateInputSeparator}>/</Text>
+          <TextInput
+            ref={yearRef}
+            style={styles.dateInput}
+            value={year}
+            onChangeText={handleYearChange}
+            placeholder="AAAA"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={4}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleYearKeyPress}
+          />
+        </View>
+        {day && month && year && year.length === 4 ? (
+          <View style={styles.checkWrapper}>
+            <Check size={18} color={COLOR_PRIMARY} />
+          </View>
+        ) : null}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -561,6 +763,7 @@ export default function RegistroUsuarioScreen() {
                 keyboardType="phone-pad"
                 maxLength={10}
                 hint="Número donde podamos contactarte"
+                numbersOnly={true}
               />
 
               <InputField
@@ -582,14 +785,13 @@ export default function RegistroUsuarioScreen() {
                 hint="Estado donde naciste según tu acta de nacimiento"
               />
 
-              <InputField
+              <DateInputField
                 label="Fecha de Nacimiento"
                 icon={<Calendar size={20} color={COLOR_GRAY} />}
                 value={formData.birthDate}
                 onChange={(value) => handleChange('birthDate', value)}
                 placeholder="DD/MM/AAAA"
                 hint="Formato: día/mes/año completo"
-                // Consider using a Date Picker component here
               />
 
               <SelectField
@@ -1106,5 +1308,21 @@ const styles = StyleSheet.create({
     color: COLOR_TEXT_SECONDARY,
     marginBottom: 8,
     fontWeight: '500',
+  },
+  dateInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateInput: {
+    paddingVertical: 12,
+    fontSize: 16,
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  dateInputSeparator: {
+    fontSize: 16,
+    color: COLOR_GRAY,
+    paddingHorizontal: 4,
   },
 }); 

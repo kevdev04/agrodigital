@@ -538,7 +538,7 @@ export default function HistorialScreen() {
 
   const handleContinue = () => {
       // Navigate to the next step: Terrain Registration
-      router.push('../screens/RegistroTerrenoScreen');
+      router.push('../(tabs)/index');
   };
 
   return (
