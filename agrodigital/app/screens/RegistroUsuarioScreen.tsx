@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ChevronRight,
+  ChevronLeft,
   Camera,
   Calendar,
   MapPin,
@@ -486,27 +487,45 @@ export default function RegistroUsuarioScreen() {
        // Could open a modal or navigate to a new screen
   }
 
+  // Go back function
+  const handleGoBack = () => {
+    router.back();
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContentContainer}
-        keyboardShouldPersistTaps="handled" // Close keyboard on tap outside
-      >
+    <View style={styles.mainContainer}>
+      <LinearGradient
+        colors={[COLOR_PRIMARY, COLOR_PRIMARY]}
+        style={styles.headerBackground}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['right', 'left', 'bottom']}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* --- Loading Overlay --- */}
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={COLOR_PRIMARY} />
+              <Text style={styles.loadingText}>Procesando...</Text>
+            </View>
+          )}
 
-        {/* --- Loading Overlay --- */}
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={COLOR_PRIMARY} />
-            <Text style={styles.loadingText}>Procesando...</Text>
-          </View>
-        )}
-
-        {/* Header with gradient */}
-        <View style={styles.headerContainer}>
-          <LinearGradient
-            colors={[COLOR_PRIMARY, COLOR_PRIMARY]} // Using tint twice for now, adjust if a darker shade is added
-            style={styles.header}>
+          {/* Header with gradient */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={handleGoBack}
+              disabled={isLoading}
+            >
+              <ChevronLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            <ThemedText type="title" style={styles.headerTitle}>
+              Registro de Agricultor
+            </ThemedText>
+            
             <TouchableOpacity
               style={styles.voiceAssistantButton}
               onPress={playInstructions}>
@@ -515,231 +534,235 @@ export default function RegistroUsuarioScreen() {
               </Text>
               <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
             </TouchableOpacity>
-            <ThemedText type="title" style={styles.headerTitle}>
-              Registro de Agricultor
-            </ThemedText>
-          </LinearGradient>
-        </View>
-
-        {/* Main form */}
-        <View style={styles.formContainer}>
-          <View style={styles.formInnerContainer}>
-            <ThemedText type="subtitle" style={styles.formSectionTitle}>
-              Información Personal
-            </ThemedText>
-
-            <InputField
-              label="Nombre Completo"
-              icon={<User size={20} color={COLOR_GRAY} />}
-              value={formData.fullName}
-              onChange={(value) => handleChange('fullName', value)}
-              placeholder="Escribe tu nombre y apellidos"
-              hint="Ingresa tu nombre como aparece en tu INE/IFE"
-            />
-
-            <InputField
-              label="Número de Teléfono"
-              icon={<Phone size={20} color={COLOR_GRAY} />}
-              value={formData.phone}
-              onChange={(value) => handleChange('phone', value)}
-              placeholder="10 dígitos"
-              keyboardType="phone-pad"
-              maxLength={10}
-              hint="Número donde podamos contactarte"
-            />
-
-            <InputField
-              label="Dirección"
-              icon={<MapPin size={20} color={COLOR_GRAY} />}
-              value={formData.address}
-              onChange={(value) => handleChange('address', value)}
-              placeholder="Calle, número, colonia, ciudad"
-              hint="Dirección donde vives actualmente"
-            />
-
-            <SelectField
-              label="Estado de Nacimiento"
-              icon={<MapPin size={20} color={COLOR_GRAY} />}
-              value={formData.birthState}
-              options={states}
-              onChange={(value) => handleChange('birthState', value)}
-              placeholder="Selecciona tu estado"
-              hint="Estado donde naciste según tu acta de nacimiento"
-            />
-
-            <InputField
-              label="Fecha de Nacimiento"
-              icon={<Calendar size={20} color={COLOR_GRAY} />}
-              value={formData.birthDate}
-              onChange={(value) => handleChange('birthDate', value)}
-              placeholder="DD/MM/AAAA"
-              hint="Formato: día/mes/año completo"
-              // Consider using a Date Picker component here
-            />
-
-            <SelectField
-              label="Sexo"
-              icon={<User size={20} color={COLOR_GRAY} />}
-              value={formData.gender}
-              options={genderOptions}
-              onChange={(value) => handleChange('gender', value)}
-              placeholder="Selecciona una opción"
-            />
-
-            {/* INE Photo Section - Updated for front and back */}
-            <View style={styles.inputContainer}>
-              
-
-              {/* Front of INE */}
-              <View style={styles.inePhotoContainer}>
-                <Text style={styles.inePhotoLabel}>Frente de la INE:<Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                {photoPreviewFront ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: photoPreviewFront }}
-                      style={styles.photoPreviewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.retakePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('front')}
-                      disabled={isLoading}>
-                      <Camera size={20} color="#000000" strokeWidth={2} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.takePhotoButton}
-                    onPress={() => !isLoading && handlePhotoCapture('front')}
-                    disabled={isLoading}>
-                    <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
-                      <Camera size={24} color="#000000" strokeWidth={2} />
-                    </View>
-                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                      Tomar foto del frente
-                    </Text>
-                    <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                      Asegúrate de que todos los datos sean legibles
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Back of INE */}
-              <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
-                <Text style={styles.inePhotoLabel}>Reverso de la INE:<Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                {photoPreviewBack ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: photoPreviewBack }}
-                      style={styles.photoPreviewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.retakePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('back')}
-                      disabled={isLoading}>
-                      <Camera size={20} color="#000000" strokeWidth={2} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.takePhotoButton}
-                    onPress={() => !isLoading && handlePhotoCapture('back')}
-                    disabled={isLoading}>
-                    <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
-                      <Camera size={24} color="#000000" strokeWidth={2} />
-                    </View>
-                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                      Tomar foto del reverso
-                    </Text>
-                    <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                      Asegúrate de que todos los datos sean legibles
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Terms and Conditions */}
-            <View style={styles.termsContainer}>
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => !isLoading && setAgreedToTerms(!agreedToTerms)} // Disable if loading
-                disabled={isLoading}>
-                {agreedToTerms ? (
-                  <CheckSquare size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                ) : (
-                  <Square size={24} color={COLOR_GRAY} />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.termsText}>
-                Al crear una cuenta, acepto los{' '}
-                <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handleTermsLink : undefined}>
-                  Términos y Condiciones
-                </Text>{' '}
-                y el{' '}
-                <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handlePrivacyLink : undefined}>
-                  Aviso de Privacidad
-                </Text>{' '}
-                del servicio.
-              </Text>
-            </View>
-
-            {/* Error Message */}
-            {showErrorMessage && (
-              <View style={styles.errorContainer}>
-                <AlertCircle size={20} color={COLOR_ERROR} style={styles.errorIcon} />
-                <Text style={styles.errorText}>
-                  Por favor completa todos los campos requeridos y acepta los términos y condiciones.
-                </Text>
-              </View>
-            )}
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}>
-                <LinearGradient
-                    colors={isLoading ? ['#bdc3c7', '#a1a8ad'] : [COLOR_PRIMARY, COLOR_PRIMARY]}
-                    style={styles.submitButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}>
-                        <Text style={styles.submitButtonText}>
-                          {isLoading ? 'Procesando...' : 'Completar Registro'}
-                        </Text>
-                        {!isLoading && <Check size={20} color="#fff" style={styles.submitButtonIcon}/>}
-                </LinearGradient>
-            </TouchableOpacity>
           </View>
 
-          <Text style={styles.footerText}>
-            Tus datos están protegidos y solo serán utilizados para los fines específicos de este programa. Si necesitas ayuda, llama al 800-123-4567.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Main form */}
+          <View style={styles.formContainer}>
+            <View style={styles.formInnerContainer}>
+              <ThemedText type="subtitle" style={styles.formSectionTitle}>
+                Información Personal
+              </ThemedText>
+
+              <InputField
+                label="Nombre Completo"
+                icon={<User size={20} color={COLOR_GRAY} />}
+                value={formData.fullName}
+                onChange={(value) => handleChange('fullName', value)}
+                placeholder="Escribe tu nombre y apellidos"
+                hint="Ingresa tu nombre como aparece en tu INE/IFE"
+              />
+
+              <InputField
+                label="Número de Teléfono"
+                icon={<Phone size={20} color={COLOR_GRAY} />}
+                value={formData.phone}
+                onChange={(value) => handleChange('phone', value)}
+                placeholder="10 dígitos"
+                keyboardType="phone-pad"
+                maxLength={10}
+                hint="Número donde podamos contactarte"
+              />
+
+              <InputField
+                label="Dirección"
+                icon={<MapPin size={20} color={COLOR_GRAY} />}
+                value={formData.address}
+                onChange={(value) => handleChange('address', value)}
+                placeholder="Calle, número, colonia, ciudad"
+                hint="Dirección donde vives actualmente"
+              />
+
+              <SelectField
+                label="Estado de Nacimiento"
+                icon={<MapPin size={20} color={COLOR_GRAY} />}
+                value={formData.birthState}
+                options={states}
+                onChange={(value) => handleChange('birthState', value)}
+                placeholder="Selecciona tu estado"
+                hint="Estado donde naciste según tu acta de nacimiento"
+              />
+
+              <InputField
+                label="Fecha de Nacimiento"
+                icon={<Calendar size={20} color={COLOR_GRAY} />}
+                value={formData.birthDate}
+                onChange={(value) => handleChange('birthDate', value)}
+                placeholder="DD/MM/AAAA"
+                hint="Formato: día/mes/año completo"
+                // Consider using a Date Picker component here
+              />
+
+              <SelectField
+                label="Sexo"
+                icon={<User size={20} color={COLOR_GRAY} />}
+                value={formData.gender}
+                options={genderOptions}
+                onChange={(value) => handleChange('gender', value)}
+                placeholder="Selecciona una opción"
+              />
+
+              {/* INE Photo Section - Updated for front and back */}
+              <View style={styles.inputContainer}>
+                
+
+                {/* Front of INE */}
+                <View style={styles.inePhotoContainer}>
+                  <Text style={styles.inePhotoLabel}>Frente de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  {photoPreviewFront ? (
+                    <View style={styles.photoPreviewContainer}>
+                      <Image
+                        source={{ uri: photoPreviewFront }}
+                        style={styles.photoPreviewImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.retakePhotoButton}
+                        onPress={() => !isLoading && handlePhotoCapture('front')}
+                        disabled={isLoading}>
+                        <Camera size={20} color="#000000" strokeWidth={2} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.takePhotoButton}
+                      onPress={() => !isLoading && handlePhotoCapture('front')}
+                      disabled={isLoading}>
+                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                        <Camera size={24} color="#000000" strokeWidth={2} />
+                      </View>
+                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                        Tomar foto del frente
+                      </Text>
+                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
+                        Asegúrate de que todos los datos sean legibles
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Back of INE */}
+                <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
+                  <Text style={styles.inePhotoLabel}>Reverso de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  {photoPreviewBack ? (
+                    <View style={styles.photoPreviewContainer}>
+                      <Image
+                        source={{ uri: photoPreviewBack }}
+                        style={styles.photoPreviewImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.retakePhotoButton}
+                        onPress={() => !isLoading && handlePhotoCapture('back')}
+                        disabled={isLoading}>
+                        <Camera size={20} color="#000000" strokeWidth={2} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.takePhotoButton}
+                      onPress={() => !isLoading && handlePhotoCapture('back')}
+                      disabled={isLoading}>
+                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                        <Camera size={24} color="#000000" strokeWidth={2} />
+                      </View>
+                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                        Tomar foto del reverso
+                      </Text>
+                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
+                        Asegúrate de que todos los datos sean legibles
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Terms and Conditions */}
+              <View style={styles.termsContainer}>
+                <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => !isLoading && setAgreedToTerms(!agreedToTerms)} // Disable if loading
+                  disabled={isLoading}>
+                  {agreedToTerms ? (
+                    <CheckSquare size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                  ) : (
+                    <Square size={24} color={COLOR_GRAY} />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.termsText}>
+                  Al crear una cuenta, acepto los{' '}
+                  <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handleTermsLink : undefined}>
+                    Términos y Condiciones
+                  </Text>{' '}
+                  y el{' '}
+                  <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handlePrivacyLink : undefined}>
+                    Aviso de Privacidad
+                  </Text>{' '}
+                  del servicio.
+                </Text>
+              </View>
+
+              {/* Error Message */}
+              {showErrorMessage && (
+                <View style={styles.errorContainer}>
+                  <AlertCircle size={20} color={COLOR_ERROR} style={styles.errorIcon} />
+                  <Text style={styles.errorText}>
+                    Por favor completa todos los campos requeridos y acepta los términos y condiciones.
+                  </Text>
+                </View>
+              )}
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={isLoading}>
+                  <LinearGradient
+                      colors={isLoading ? ['#bdc3c7', '#a1a8ad'] : [COLOR_PRIMARY, COLOR_PRIMARY]}
+                      style={styles.submitButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}>
+                          <Text style={styles.submitButtonText}>
+                            {isLoading ? 'Procesando...' : 'Completar Registro'}
+                          </Text>
+                          {!isLoading && <Check size={20} color="#fff" style={styles.submitButtonIcon}/>}
+                  </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.footerText}>
+              Tus datos están protegidos y solo serán utilizados para los fines específicos de este programa. Si necesitas ayuda, llama al 800-123-4567.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 // Define styles (This is a significant translation from Tailwind)
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLOR_PRIMARY, // Match header color for status bar area
-  },
-  container: {
+  mainContainer: {
     flex: 1,
     backgroundColor: Colors.light.background,
   },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220, // Adjust height as needed
+  },
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
   scrollContentContainer: {
     paddingBottom: 40, // Ensure space at the bottom
-    paddingHorizontal: 0, // No horizontal padding
   },
-  // --- Loading Overlay Styles --- 
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject, // Cover entire screen
     backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
@@ -753,19 +776,29 @@ const styles = StyleSheet.create({
     color: COLOR_PRIMARY,
     fontWeight: '500',
   },
-  // --- End Loading Overlay Styles --- 
   headerContainer: {
     width: '100%',
     overflow: 'hidden',
   },
   header: {
-    paddingTop: 30, // Adjust as needed for status bar height
-    paddingBottom: 40, // Increased padding below header content
-    paddingHorizontal: 0, // Remove horizontal padding
-    alignItems: 'center', // Center items horizontally
-    width: '100%', // Ensure full width
-    left: 0,
-    right: 0,
+    paddingTop: 70,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    width: '100%',
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    top: 70,
+    zIndex: 10,
+  },
+  headerTitle: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 20, // Add margin to create space between title and button
   },
   voiceAssistantButton: {
     flexDirection: 'row',
@@ -774,7 +807,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    marginBottom: 20, // Space below the button
+    marginTop: 5, // Space above the button
   },
   voiceAssistantText: {
     color: '#fff',
@@ -784,21 +817,13 @@ const styles = StyleSheet.create({
   voiceAssistantIcon: {
       // marginLeft added automatically by space in Text component
   },
-  headerTitle: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
   formContainer: {
-    flex: 1,
-    marginTop: -24, // Pull the form container up slightly over the header bottom
     backgroundColor: Colors.light.background,
     borderTopLeftRadius: 24, // Match rounded-t-3xl
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 24, // Add padding inside the container
-    zIndex: 10,
-    marginHorizontal: 0, // Ensure no horizontal margin
+    marginTop: 20, // Add margin to create space after header
   },
   formInnerContainer: {
     backgroundColor: '#fff', // White card background

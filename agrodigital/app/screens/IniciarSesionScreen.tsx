@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 180, // Increased height to cover the header area properly
+    height: 240, // Further increased
   },
   safeArea: {
     flex: 1,
@@ -292,15 +292,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingBottom: 30,
+    paddingTop: 70,
+    paddingBottom: 30, // Increased for more space at bottom of header
     paddingHorizontal: 16,
     position: 'relative',
   },
   backButton: {
     position: 'absolute',
     left: 16,
-    top: 50,
+    top: 70, // Matched with header paddingTop
     zIndex: 10,
   },
   headerTitle: {
@@ -314,8 +314,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
-    paddingTop: 24,
-    marginTop: -20,
+    paddingTop: 30, // Increased internal padding
+    marginTop: 40, // Increased for more space
   },
   formInnerContainer: {
     backgroundColor: '#fff',
