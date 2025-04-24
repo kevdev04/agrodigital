@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,7 +17,8 @@ import {
   ClipboardList,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useUser } from '@/contexts/UserContext';
 
 // --- Constants for colors not defined in Colors.ts or needing specific shades ---
 const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
@@ -30,6 +31,142 @@ const COLOR_BLUE_LIGHT_BG = '#EFF6FF';
 const COLOR_TEXT_SECONDARY = Colors.light.icon; // Use icon gray for secondary text
 const COLOR_BORDER_LIGHT = '#E5E7EB'; // Light gray for borders
 // --- End Constants ---
+
+// --- Helper Functions for CURP/RFC Generation ---
+
+// Normalize string: Uppercase, remove accents, handle Ñ
+const normalizeString = (str: string): string => {
+  if (!str) return '';
+  return str
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/Ñ/g, 'X'); // Replace Ñ with X as per some rules
+};
+
+// Get first vowel of a string
+const getFirstVowel = (str: string): string => {
+  const match = normalizeString(str).match(/[AEIOU]/);
+  return match ? match[0] : 'X'; // Use X if no vowel found
+};
+
+// Get first internal consonant
+const getFirstInternalConsonant = (str: string): string => {
+  const normalized = normalizeString(str);
+  for (let i = 1; i < normalized.length; i++) {
+    if ('BCDFGHJKLMNPQRSTVWXYZ'.includes(normalized[i])) {
+      return normalized[i];
+    }
+  }
+  return 'X'; // Use X if no internal consonant found
+};
+
+// Basic name parser (adjust based on expected format)
+const parseFullName = (fullName: string): { first: string; paternal: string; maternal: string } => {
+  const parts = normalizeString(fullName).split(' ').filter(part => part.length > 0);
+  if (parts.length === 0) return { first: '', paternal: '', maternal: '' };
+
+  let firstName = '';
+  let paternalSurname = '';
+  let maternalSurname = '';
+
+  // Very basic assumption: First part is name(s), last two are surnames
+  if (parts.length >= 3) {
+    paternalSurname = parts[parts.length - 2];
+    maternalSurname = parts[parts.length - 1];
+    firstName = parts.slice(0, parts.length - 2).join(' ');
+  } else if (parts.length === 2) {
+    // Assume: First name, Paternal surname (no maternal)
+    paternalSurname = parts[1];
+    firstName = parts[0];
+    maternalSurname = ''; // No maternal surname
+  } else {
+    // Assume: Only first name or single name part
+    firstName = parts[0];
+    paternalSurname = '';
+    maternalSurname = '';
+  }
+
+  // Further filtering for common particles might be needed (DE, LA, DEL, etc.)
+
+  return {
+    first: firstName.split(' ')[0] || '', // Take only the first name part
+    paternal: paternalSurname,
+    maternal: maternalSurname,
+  };
+};
+
+// Map state names to CURP codes
+const stateCodes: { [key: string]: string } = {
+  'AGUASCALIENTES': 'AS', 'BAJA CALIFORNIA': 'BC', 'BAJA CALIFORNIA SUR': 'BS',
+  'CAMPECHE': 'CC', 'COAHUILA': 'CL', 'COLIMA': 'CM', 'CHIAPAS': 'CS',
+  'CHIHUAHUA': 'CH', 'DISTRITO FEDERAL': 'DF', 'CIUDAD DE MÉXICO': 'DF',
+  'DURANGO': 'DG', 'GUANAJUATO': 'GT', 'GUERRERO': 'GR', 'HIDALGO': 'HG',
+  'JALISCO': 'JC', 'MÉXICO': 'MC', 'MICHOACÁN': 'MN', 'MORELOS': 'MS',
+  'NAYARIT': 'NT', 'NUEVO LEÓN': 'NL', 'OAXACA': 'OC', 'PUEBLA': 'PL',
+  'QUERÉTARO': 'QT', 'QUINTANA ROO': 'QR', 'SAN LUIS POTOSÍ': 'SP',
+  'SINALOA': 'SL', 'SONORA': 'SR', 'TABASCO': 'TC', 'TAMAULIPAS': 'TS',
+  'TLAXCALA': 'TL', 'VERACRUZ': 'VZ', 'YUCATÁN': 'YN', 'ZACATECAS': 'ZS',
+  'NACIDO EN EL EXTRANJERO': 'NE'
+};
+
+const getStateCode = (stateName: string): string => {
+  return stateCodes[normalizeString(stateName)] || 'NE'; // Default to NE (Foreign)
+};
+
+// Format birth date DD/MM/AAAA to YYMMDD
+const formatBirthDate = (dateStr: string): string => {
+  if (!dateStr || !/\d{2}\/\d{2}\/\d{4}/.test(dateStr)) return '000000';
+  const [day, month, year] = dateStr.split('/');
+  return `${year.substring(2)}${month}${day}`;
+};
+
+// Generate CURP base (first 16 chars)
+const generateCurpBase = (name: { first: string; paternal: string; maternal: string }, birthDate: string, gender: string, stateCode: string): string => {
+  const firstLetterPaternal = name.paternal ? normalizeString(name.paternal)[0] : 'X';
+  const firstVowelPaternal = name.paternal ? getFirstVowel(name.paternal) : 'X';
+  const firstLetterMaternal = name.maternal ? normalizeString(name.maternal)[0] : 'X';
+  const firstLetterName = name.first ? normalizeString(name.first)[0] : 'X';
+  const dateYYMMDD = formatBirthDate(birthDate);
+  const genderChar = normalizeString(gender) === 'HOMBRE' ? 'H' : 'M';
+  const firstConsonantPaternal = name.paternal ? getFirstInternalConsonant(name.paternal) : 'X';
+  const firstConsonantMaternal = name.maternal ? getFirstInternalConsonant(name.maternal) : 'X';
+  const firstConsonantName = name.first ? getFirstInternalConsonant(name.first) : 'X';
+
+  // Handle potential invalid chars or edge cases like names starting with Ñ (becomes X)
+  const base = `${firstLetterPaternal}${firstVowelPaternal}${firstLetterMaternal}${firstLetterName}${dateYYMMDD}${genderChar}${stateCode}${firstConsonantPaternal}${firstConsonantMaternal}${firstConsonantName}`;
+  
+  // Basic filtering for common inappropriate words (replace with X)
+  const forbiddenWords = ['BUEI', 'BUEY', 'CACA', 'CACO', 'CAGA', 'CAGO', 'CAKA', 'CAKO', 'COGE', 'COJA', 'COJE', 'COJI', 'COJO', 'CULO', 'FETO', 'GUEY', 'JOTO', 'KACA', 'KACO', 'KAGA', 'KAGO', 'KOGE', 'KOJO', 'KAKA', 'KULO', 'MAME', 'MAMO', 'MEAR', 'MEAS', 'MEON', 'MION', 'MOCO', 'MULA', 'PEDA', 'PEDO', 'PENE', 'PUTA', 'PUTO', 'QULO', 'RATA', 'RUIN'];
+  const firstFour = base.substring(0, 4);
+  if (forbiddenWords.includes(firstFour)) {
+      return `X${base.substring(1, 16)}`;
+  }
+
+  return base.substring(0, 16);
+};
+
+// Generate RFC base (first 10 chars)
+const generateRfcBase = (name: { first: string; paternal: string; maternal: string }, birthDate: string): string => {
+  const firstLetterPaternal = name.paternal ? normalizeString(name.paternal)[0] : 'X';
+  const firstVowelPaternal = name.paternal ? getFirstVowel(name.paternal) : 'X';
+  const firstLetterMaternal = name.maternal ? normalizeString(name.maternal)[0] : 'X';
+  const firstLetterName = name.first ? normalizeString(name.first)[0] : 'X';
+  const dateYYMMDD = formatBirthDate(birthDate);
+
+  const base = `${firstLetterPaternal}${firstVowelPaternal}${firstLetterMaternal}${firstLetterName}${dateYYMMDD}`;
+  
+  // Basic filtering for common inappropriate words (replace with X)
+  const forbiddenWords = ['BUEI', 'BUEY', 'CACA', 'CACO', 'CAGA', 'CAGO', 'CAKA', 'CAKO', 'COGE', 'COJA', 'COJE', 'COJI', 'COJO', 'CULO', 'FETO', 'GUEY', 'JOTO', 'KACA', 'KACO', 'KAGA', 'KAGO', 'KOGE', 'KOJO', 'KAKA', 'KULO', 'MAME', 'MAMO', 'MEAR', 'MEAS', 'MEON', 'MION', 'MOCO', 'MULA', 'PEDA', 'PEDO', 'PENE', 'PUTA', 'PUTO', 'QULO', 'RATA', 'RUIN'];
+  const firstFour = base.substring(0, 4);
+  if (forbiddenWords.includes(firstFour)) {
+      return `X${base.substring(1, 10)}`;
+  }
+
+  return base.substring(0, 10);
+};
+
+// --- End Helper Functions ---
 
 // Helper component for info rows in the header
 const HeaderInfoRow = ({ label, value, valueColor }: { label: string; value: string | number; valueColor?: string }) => (
@@ -49,17 +186,67 @@ const InfoRow = ({ label, value, valueColor }: { label: string; value: string | 
 
 export default function HistorialScreen() {
   const router = useRouter();
-  // Simulación de datos que vendrían de vuestro formulario previo
-  const [userData] = useState({
-    nombre: 'María González Rodríguez',
-    curp: 'GORM850612MDFNDR09',
-    rfc: 'GORM850612RT5',
-    fechaNacimiento: '12/06/1985',
-    ingresosMensuales: '$28,500',
-    tiempoEmpleoActual: '3 años, 4 meses',
-    direccion: 'Av. Reforma 247, Col. Juárez, CDMX',
-    telefono: '(55) 8732-4590',
-    correo: 'maria.gonzalez@ejemplo.com',
+  const params = useLocalSearchParams();
+  const { userData, updateUserData } = useUser();
+  const hasUpdatedUserData = useRef(false);
+  
+  // Get user data from params (passed from RegistroUsuarioScreen through VerificacionSMSScreen)
+  const fullName = params.fullName ? String(params.fullName) : '';
+  const phone = params.phoneNumber ? String(params.phoneNumber) : '';
+  const address = params.address ? String(params.address) : '';
+  const birthState = params.birthState ? String(params.birthState) : '';
+  const birthDate = params.birthDate ? String(params.birthDate) : '';
+  const gender = params.gender ? String(params.gender) : '';
+  
+  // Generate CURP and RFC bases - store in refs to avoid recalculation on each render
+  const curpBaseRef = useRef('');
+  const rfcBaseRef = useRef('');
+  
+  // State for displaying CURP and RFC in UI
+  const [displayCurp, setDisplayCurp] = useState('');
+  const [displayRfc, setDisplayRfc] = useState('');
+  
+  // Only calculate once on component mount
+  useEffect(() => {
+    if (fullName && birthDate) {
+      const parsedName = parseFullName(fullName);
+      const stateCode = getStateCode(birthState);
+      curpBaseRef.current = generateCurpBase(parsedName, birthDate, gender, stateCode);
+      rfcBaseRef.current = generateRfcBase(parsedName, birthDate);
+      
+      // Update display values
+      setDisplayCurp(`${curpBaseRef.current}XX`);
+      setDisplayRfc(`${rfcBaseRef.current}XXX`);
+    }
+  }, []);
+  
+  // Save generated CURP and RFC to user context only once
+  useEffect(() => {
+    if (curpBaseRef.current && rfcBaseRef.current && !hasUpdatedUserData.current) {
+      updateUserData({
+        curp: `${curpBaseRef.current}XX`, // Placeholder XX for homoclave + digit
+        rfc: `${rfcBaseRef.current}XXX`,  // Placeholder XXX for homoclave
+      });
+      hasUpdatedUserData.current = true;
+    }
+  }, [updateUserData]);
+
+  // Simulación de datos con CURP y RFC generados (con homoclave placeholder)
+  const [userData2] = useState(() => {
+    // Use an initialization function to avoid recalculating on every render
+    return {
+      nombre: fullName || 'María González Rodríguez',
+      curp: 'Calculando...', // Will be updated after calculation
+      rfc: 'Calculando...', // Will be updated after calculation
+      fechaNacimiento: birthDate || '12/06/1985',
+      ingresosMensuales: '$28,500', // Placeholder
+      tiempoEmpleoActual: '3 años, 4 meses', // Placeholder
+      direccion: address || 'Av. Reforma 247, Col. Juárez, CDMX',
+      telefono: phone || '(55) 8732-4590',
+      correo: `${fullName.replace(/\s+/g, '.').toLowerCase()}@ejemplo.com` || 'maria.gonzalez@ejemplo.com',
+      estado: birthState || 'Ciudad de México',
+      genero: gender || 'Mujer',
+    };
   });
 
   // Resultado de la evaluación basado en el diagrama de flujo
@@ -197,11 +384,14 @@ export default function HistorialScreen() {
               <Text style={styles.cardTitle}>Datos personales</Text>
             </View>
             <View style={styles.cardContent}>
-              <InfoRow label="Nombre completo" value={userData.nombre} />
-              <InfoRow label="CURP" value={userData.curp} />
-              <InfoRow label="RFC" value={userData.rfc} />
-              <InfoRow label="Fecha de nacimiento" value={userData.fechaNacimiento} />
-              <InfoRow label="Teléfono" value={userData.telefono} />
+              <InfoRow label="Nombre completo" value={userData2.nombre} />
+              <InfoRow label="CURP" value={displayCurp || 'XXXX000000XXXXXX'} />
+              <InfoRow label="RFC" value={displayRfc || 'XXXX000000'} />
+              <InfoRow label="Fecha de nacimiento" value={userData2.fechaNacimiento} />
+              <InfoRow label="Estado" value={userData2.estado} />
+              <InfoRow label="Género" value={userData2.genero} />
+              <InfoRow label="Teléfono" value={userData2.telefono} />
+              <InfoRow label="Correo" value={userData2.correo} />
             </View>
           </View>
 
@@ -212,8 +402,9 @@ export default function HistorialScreen() {
               <Text style={styles.cardTitle}>Información financiera</Text>
             </View>
             <View style={styles.cardContent}>
-              <InfoRow label="Ingresos mensuales" value={userData.ingresosMensuales} />
-              <InfoRow label="Tiempo en empleo actual" value={userData.tiempoEmpleoActual} />
+              <InfoRow label="Ingresos mensuales" value={userData2.ingresosMensuales} />
+              <InfoRow label="Tiempo en empleo actual" value={userData2.tiempoEmpleoActual} />
+              <InfoRow label="Dirección" value={userData2.direccion} />
             </View>
           </View>
 

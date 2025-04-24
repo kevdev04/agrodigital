@@ -13,16 +13,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useUser } from '../../contexts/UserContext';
 
 // Color constants
 const COLOR_PRIMARY = Colors.light.tint;
 
 export default function HomeScreen() {
   const [offlineMode, setOfflineMode] = useState(false);
+  const { userData } = useUser();
   
   // Simulated user data
-  const userData = {
-    name: "Miguel Rodríguez",
+  const userDataDefault = {
+    name: userData.fullName || "Miguel Rodríguez",
     cooperative: "Cooperativa San Juan",
     currentCredit: 52000,
     availableCredit: 78000,
@@ -50,8 +52,8 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Bienvenido,</Text>
-          <Text style={styles.userName}>{userData.name}</Text>
-          <Text style={styles.cooperativeText}>{userData.cooperative}</Text>
+          <Text style={styles.userName}>{userDataDefault.name}</Text>
+          <Text style={styles.cooperativeText}>{userDataDefault.cooperative}</Text>
         </View>
         
         <View style={[
@@ -81,14 +83,14 @@ export default function HomeScreen() {
             <View style={styles.financialItem}>
               <Text style={styles.itemLabel}>Crédito Disponible</Text>
               <Text style={styles.itemValue}>
-                ${userData.availableCredit.toLocaleString()}
+                ${userDataDefault.availableCredit.toLocaleString()}
               </Text>
             </View>
             
             <View style={styles.financialItem}>
               <Text style={styles.itemLabel}>Crédito Actual</Text>
               <Text style={styles.itemValue}>
-                ${userData.currentCredit.toLocaleString()}
+                ${userDataDefault.currentCredit.toLocaleString()}
               </Text>
             </View>
           </View>
@@ -99,7 +101,7 @@ export default function HomeScreen() {
               <View 
                 style={[
                   styles.progressBar, 
-                  { width: `${userData.creditScore/10}%` }
+                  { width: `${userDataDefault.creditScore/10}%` }
                 ]} 
               />
             </View>
@@ -126,12 +128,12 @@ export default function HomeScreen() {
                 <View 
                   style={[
                     styles.progressBar, 
-                    { width: `${userData.harvestProgress}%` }
+                    { width: `${userDataDefault.harvestProgress}%` }
                   ]} 
                 />
               </View>
               <Text style={styles.progressText}>
-                Progreso de cosecha: {userData.harvestProgress}%
+                Progreso de cosecha: {userDataDefault.harvestProgress}%
               </Text>
             </View>
           </View>
@@ -162,7 +164,7 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Próximos Pagos</Text>
           
-          {userData.upcomingPayments.map((payment, index) => (
+          {userDataDefault.upcomingPayments.map((payment, index) => (
             <View key={index} style={styles.paymentItem}>
               <View>
                 <Text style={styles.paymentConcept}>{payment.concept}</Text>
