@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ChevronRight,
+  ChevronLeft,
   Camera,
   Calendar,
   MapPin,
@@ -31,16 +32,17 @@ import {
   CheckSquare, // Example for Checkbox checked
   Square, // Example for Checkbox unchecked
   X,
+  Navigation,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router'; // Import useRouter
 import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
-import { userService } from '../../api/userService';
+import { useUser } from '@/contexts/UserContext';
+import * as Location from 'expo-location'; // Import Location
 
-// --- Constants for colors not defined in Colors.ts ---
-const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
+const COLOR_GRAY = Colors.light.icon; 
 const COLOR_PRIMARY = Colors.light.tint;
 const COLOR_BORDER = '#E5E7EB'; // Light gray for borders
 const COLOR_ERROR = '#DC3545'; // Standard red for errors
@@ -71,6 +73,7 @@ interface InputFieldProps {
   maxLength?: number;
   required?: boolean;
   hint?: string;
+  numbersOnly?: boolean;
 }
 
 function InputField({
@@ -83,13 +86,29 @@ function InputField({
   maxLength,
   required = true,
   hint,
+  numbersOnly = false,
 }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const handleHint = () => {
       if (hint) {
         Alert.alert('Información', hint);
       }
+  };
+
+  const handleTextChange = (text: string) => {
+    // If numbersOnly is true, filter out non-numeric characters
+    if (numbersOnly) {
+      const numericValue = text.replace(/[^0-9]/g, '');
+      onChange(numericValue);
+    } else {
+      onChange(text);
+    }
+  };
+
+  const handlePress = () => {
+    inputRef.current?.focus();
   };
 
   return (
@@ -105,29 +124,214 @@ function InputField({
           </TouchableOpacity>
         )}
       </View>
-      <View style={[
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        style={[
           styles.inputWrapper,
           focused ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
-      ]}>
+        ]}
+      >
         <View style={styles.iconWrapper}>{icon}</View>
         <TextInput
+          ref={inputRef}
           style={styles.textInput}
           value={value}
-          onChangeText={onChange}
+          onChangeText={handleTextChange}
           placeholder={placeholder}
           placeholderTextColor={COLOR_GRAY}
-          keyboardType={keyboardType}
+          keyboardType={numbersOnly ? 'numeric' : keyboardType}
           maxLength={maxLength}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          // secureTextEntry={type === 'password'} // Add if needed
         />
         {value ? (
           <View style={styles.checkWrapper}>
             <Check size={18} color={COLOR_PRIMARY} />
           </View>
         ) : null}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// New component for date input with DD/MM/YYYY format
+interface DateInputFieldProps {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  required?: boolean;
+  hint?: string;
+}
+
+function DateInputField({
+  label,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  required = true,
+  hint,
+}: DateInputFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  
+  const dayRef = useRef<TextInput>(null);
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
+
+  // Update internal state when the value changes
+  useEffect(() => {
+    if (value) {
+      const parts = value.split('/');
+      if (parts.length === 3) {
+        setDay(parts[0]);
+        setMonth(parts[1]);
+        setYear(parts[2]);
+      }
+    }
+  }, []);
+
+  const handleHint = () => {
+    if (hint) {
+      Alert.alert('Información', hint);
+    }
+  };
+
+  const updateFormattedDate = (newDay: string, newMonth: string, newYear: string) => {
+    const formattedDate = `${newDay}${newDay ? '/' : ''}${newMonth}${newMonth ? '/' : ''}${newYear}`;
+    onChange(formattedDate.replace(/\/$/, '')); // Remove trailing slash if exists
+  };
+
+  const handleDayChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setDay(numericValue);
+    
+    if (numericValue.length === 2) {
+      monthRef.current?.focus();
+    }
+    
+    updateFormattedDate(numericValue, month, year);
+  };
+
+  const handleMonthChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setMonth(numericValue);
+    
+    if (numericValue.length === 2) {
+      yearRef.current?.focus();
+    }
+    
+    updateFormattedDate(day, numericValue, year);
+  };
+
+  const handleYearChange = (text: string) => {
+    // Only allow digits
+    const numericValue = text.replace(/[^0-9]/g, '');
+    setYear(numericValue);
+    updateFormattedDate(day, month, numericValue);
+  };
+
+  const handleDayKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && day === '') {
+      // No action needed, already at first field
+    }
+  };
+
+  const handleMonthKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && month === '') {
+      dayRef.current?.focus();
+    }
+  };
+
+  const handleYearKeyPress = (e: any) => {
+    if (e.nativeEvent.key === 'Backspace' && year === '') {
+      monthRef.current?.focus();
+    }
+  };
+
+  const handlePress = () => {
+    // Always focus on the day field first
+    dayRef.current?.focus();
+  };
+
+  return (
+    <View style={styles.inputContainer}>
+      <View style={styles.labelContainer}>
+        <Text style={styles.labelText}>
+          {label}
+          {required && <Text style={styles.requiredAsterisk}>*</Text>}
+        </Text>
+        {hint && (
+          <TouchableOpacity onPress={handleHint} style={styles.hintButton}>
+            <Info size={16} color={COLOR_GRAY} />
+          </TouchableOpacity>
+        )}
       </View>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        style={[
+          styles.inputWrapper,
+          focused ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
+        ]}
+      >
+        <View style={styles.iconWrapper}>{icon}</View>
+        <View style={styles.dateInputContainer}>
+          <TextInput
+            ref={dayRef}
+            style={styles.dateInput}
+            value={day}
+            onChangeText={handleDayChange}
+            placeholder="DD"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={2}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleDayKeyPress}
+          />
+          <Text style={styles.dateInputSeparator}>/</Text>
+          <TextInput
+            ref={monthRef}
+            style={styles.dateInput}
+            value={month}
+            onChangeText={handleMonthChange}
+            placeholder="MM"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={2}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleMonthKeyPress}
+          />
+          <Text style={styles.dateInputSeparator}>/</Text>
+          <TextInput
+            ref={yearRef}
+            style={styles.dateInput}
+            value={year}
+            onChangeText={handleYearChange}
+            placeholder="AAAA"
+            placeholderTextColor={COLOR_GRAY}
+            keyboardType="numeric"
+            maxLength={4}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onKeyPress={handleYearKeyPress}
+          />
+        </View>
+        {day && month && year && year.length === 4 ? (
+          <View style={styles.checkWrapper}>
+            <Check size={18} color={COLOR_PRIMARY} />
+          </View>
+        ) : null}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -237,6 +441,7 @@ function SelectField({
 export default function RegistroUsuarioScreen() {
   const router = useRouter(); // Initialize router
   const [isLoading, setIsLoading] = useState(false); // Add loading state
+  const { updateUserData } = useUser(); // Get updateUserData from context
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     phone: '',
@@ -255,12 +460,17 @@ export default function RegistroUsuarioScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [capturingFront, setCapturingFront] = useState(true); // Track which side we're capturing
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   // Request camera permissions on component mount
   useEffect(() => {
     (async () => {
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       setCameraPermission(cameraStatus.status === 'granted');
+      
+      const locationStatus = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(locationStatus.status === 'granted');
     })();
   }, []);
 
@@ -317,6 +527,66 @@ export default function RegistroUsuarioScreen() {
     }
   };
 
+  // New function to get the user's current location
+  const getLocation = async () => {
+    if (!locationPermission) {
+      Alert.alert(
+        'Permiso requerido',
+        'Necesitamos permiso para acceder a tu ubicación',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Configuración',
+            onPress: () => Platform.OS === 'ios'
+              ? Linking.openURL('app-settings:')
+              : Linking.openSettings()
+          }
+        ]
+      );
+      return;
+    }
+
+    try {
+      setIsGettingLocation(true);
+
+      // Get the user's current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+      });
+
+      // Reverse geocode to get the address from coordinates
+      const [geocode] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (geocode) {
+        // Format the address
+        const formattedAddress = [
+          geocode.street,
+          geocode.streetNumber,
+          geocode.district,
+          geocode.city,
+          geocode.region,
+          geocode.postalCode,
+          geocode.country
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        // Set the address in the form
+        handleChange('address', formattedAddress);
+      } else {
+        Alert.alert('Error', 'No se pudo obtener la dirección desde tu ubicación.');
+      }
+    } catch (error) {
+      console.error('Error obteniendo ubicación:', error);
+      Alert.alert('Error', 'No se pudo obtener tu ubicación.');
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // Hide previous error messages
     setShowErrorMessage(false);
@@ -331,32 +601,37 @@ export default function RegistroUsuarioScreen() {
       if (isFilled && agreedToTerms) {
         console.log("Preparando datos para registro:", formData);
         
-        // Crear objeto con los datos del usuario para enviar a la API
-        const userData = {
-          userId: `user-${Date.now()}`,  // Generar un ID único
+        // Skip API call since we're not using the service anymore
+        
+        // Generate email from name
+        const email = `${formData.fullName.replace(/\s+/g, '.').toLowerCase()}@agrodigital.com`;
+        
+        // Save user data to context
+        updateUserData({
           fullName: formData.fullName,
-          email: `${formData.fullName.replace(/\s+/g, '').toLowerCase()}@ejemplo.com`, // Email provisional
-          password: "Password123!", // Contraseña provisional
           phone: formData.phone,
           address: formData.address,
           birthState: formData.birthState,
           birthDate: formData.birthDate,
           gender: formData.gender,
-          createdAt: new Date().toISOString()
-        };
+          email: email,
+          // We'll generate CURP and RFC later in Historial.tsx
+        });
         
-        console.log("Enviando datos de usuario:", userData);
-        
-        // Llamar a la API para registrar el usuario
-        const response = await userService.register(userData);
-        console.log("Usuario registrado exitosamente:", response.data);
+        // Wait a bit to simulate processing
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Navegar a la pantalla de verificación SMS
         try {
           router.push({
             pathname: "/screens/VerificacionSMSScreen",
             params: {
-              phone: formData.phone
+              phone: formData.phone,
+              fullName: formData.fullName,
+              address: formData.address,
+              birthState: formData.birthState,
+              birthDate: formData.birthDate,
+              gender: formData.gender
             }
           });
         } catch (error) {
@@ -369,10 +644,10 @@ export default function RegistroUsuarioScreen() {
         setShowErrorMessage(true);
       }
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
+      console.error("Error en procesamiento:", error);
       Alert.alert(
         "Error",
-        "Hubo un problema al registrar tu perfil. Por favor intenta de nuevo más tarde."
+        "Hubo un problema al procesar tu información. Por favor intenta de nuevo."
       );
       setShowErrorMessage(true);
     } finally {
@@ -481,283 +756,378 @@ export default function RegistroUsuarioScreen() {
        // Could open a modal or navigate to a new screen
   }
 
+  // Go back function
+  const handleGoBack = () => {
+    router.back();
+  };
+
+  // Reference object for input fields
+  const inputRefs = useRef<{
+    addressRef: TextInput | null;
+  }>({
+    addressRef: null,
+  });
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContentContainer}
-        keyboardShouldPersistTaps="handled" // Close keyboard on tap outside
-      >
+    <View style={styles.mainContainer}>
+      <LinearGradient
+        colors={[COLOR_PRIMARY, COLOR_PRIMARY]}
+        style={styles.headerBackground}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['right', 'left', 'bottom']}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* --- Loading Overlay --- */}
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={COLOR_PRIMARY} />
+              <Text style={styles.loadingText}>Procesando...</Text>
+            </View>
+          )}
 
-        {/* --- Loading Overlay --- */}
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={COLOR_PRIMARY} />
-            <Text style={styles.loadingText}>Procesando...</Text>
-          </View>
-        )}
-
-        {/* Header with gradient */}
-        <LinearGradient
-          colors={[COLOR_PRIMARY, COLOR_PRIMARY]} // Using tint twice for now, adjust if a darker shade is added
-          style={styles.header}>
-          <TouchableOpacity
-            style={styles.voiceAssistantButton}
-            onPress={playInstructions}>
-            <Text style={styles.voiceAssistantText}>
-              {isPlaying ? 'Detener instrucciones' : 'Activar instrucciones por voz'}
-            </Text>
-            <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Registro de Agricultor
-          </ThemedText>
-        </LinearGradient>
-
-        {/* Main form */}
-        <View style={styles.formContainer}>
-          <View style={styles.formInnerContainer}>
-            <ThemedText type="subtitle" style={styles.formSectionTitle}>
-              Información Personal
+          {/* Header with gradient */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={handleGoBack}
+              disabled={isLoading}
+            >
+              <ChevronLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            <ThemedText type="title" style={styles.headerTitle}>
+              Registro de Agricultor
             </ThemedText>
-
-            <InputField
-              label="Nombre Completo"
-              icon={<User size={20} color={COLOR_GRAY} />}
-              value={formData.fullName}
-              onChange={(value) => handleChange('fullName', value)}
-              placeholder="Escribe tu nombre y apellidos"
-              hint="Ingresa tu nombre como aparece en tu INE/IFE"
-            />
-
-            <InputField
-              label="Número de Teléfono"
-              icon={<Phone size={20} color={COLOR_GRAY} />}
-              value={formData.phone}
-              onChange={(value) => handleChange('phone', value)}
-              placeholder="10 dígitos"
-              keyboardType="phone-pad"
-              maxLength={10}
-              hint="Número donde podamos contactarte"
-            />
-
-            <InputField
-              label="Dirección"
-              icon={<MapPin size={20} color={COLOR_GRAY} />}
-              value={formData.address}
-              onChange={(value) => handleChange('address', value)}
-              placeholder="Calle, número, colonia, ciudad"
-              hint="Dirección donde vives actualmente"
-            />
-
-            <SelectField
-              label="Estado de Nacimiento"
-              icon={<MapPin size={20} color={COLOR_GRAY} />}
-              value={formData.birthState}
-              options={states}
-              onChange={(value) => handleChange('birthState', value)}
-              placeholder="Selecciona tu estado"
-              hint="Estado donde naciste según tu acta de nacimiento"
-            />
-
-            <InputField
-              label="Fecha de Nacimiento"
-              icon={<Calendar size={20} color={COLOR_GRAY} />}
-              value={formData.birthDate}
-              onChange={(value) => handleChange('birthDate', value)}
-              placeholder="DD/MM/AAAA"
-              hint="Formato: día/mes/año completo"
-              // Consider using a Date Picker component here
-            />
-
-            <SelectField
-              label="Sexo"
-              icon={<User size={20} color={COLOR_GRAY} />}
-              value={formData.gender}
-              options={genderOptions}
-              onChange={(value) => handleChange('gender', value)}
-              placeholder="Selecciona una opción"
-            />
-
-            {/* INE Photo Section - Updated for front and back */}
-            <View style={styles.inputContainer}>
-              <View style={styles.labelContainer}>
-                <Text style={styles.labelText}>
-                  Credencial INE
-                  <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  onPress={() => Alert.alert('Info INE', 'Necesitamos ambos lados de tu credencial de elector')}
-                  style={styles.hintButton}>
-                  <Info size={16} color={COLOR_GRAY} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Front of INE */}
-              <View style={styles.inePhotoContainer}>
-                <Text style={styles.inePhotoLabel}>Frente de la INE:</Text>
-                {photoPreviewFront ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: photoPreviewFront }}
-                      style={styles.photoPreviewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.retakePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('front')}
-                      disabled={isLoading}>
-                      <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.takePhotoButton}
-                    onPress={() => !isLoading && handlePhotoCapture('front')}
-                    disabled={isLoading}>
-                    <View style={styles.takePhotoButtonIconBg}>
-                      <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                    </View>
-                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                      Tomar foto del frente
-                    </Text>
-                    <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                      Asegúrate de que todos los datos sean legibles
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Back of INE */}
-              <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
-                <Text style={styles.inePhotoLabel}>Reverso de la INE:</Text>
-                {photoPreviewBack ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: photoPreviewBack }}
-                      style={styles.photoPreviewImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.retakePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('back')}
-                      disabled={isLoading}>
-                      <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.takePhotoButton}
-                    onPress={() => !isLoading && handlePhotoCapture('back')}
-                    disabled={isLoading}>
-                    <View style={styles.takePhotoButtonIconBg}>
-                      <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                    </View>
-                    <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                      Tomar foto del reverso
-                    </Text>
-                    <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                      Asegúrate de que todos los datos sean legibles
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Terms and Conditions */}
-            <View style={styles.termsContainer}>
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => !isLoading && setAgreedToTerms(!agreedToTerms)} // Disable if loading
-                disabled={isLoading}>
-                {agreedToTerms ? (
-                  <CheckSquare size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
-                ) : (
-                  <Square size={24} color={COLOR_GRAY} />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.termsText}>
-                Al crear una cuenta, acepto los{' '}
-                <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handleTermsLink : undefined}>
-                  Términos y Condiciones
-                </Text>{' '}
-                y el{' '}
-                <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handlePrivacyLink : undefined}>
-                  Aviso de Privacidad
-                </Text>{' '}
-                del servicio.
-              </Text>
-            </View>
-
-            {/* Error Message */}
-            {showErrorMessage && (
-              <View style={styles.errorContainer}>
-                <AlertCircle size={20} color={COLOR_ERROR} style={styles.errorIcon} />
-                <Text style={styles.errorText}>
-                  Por favor completa todos los campos requeridos y acepta los términos y condiciones.
-                </Text>
-              </View>
-            )}
-
-            {/* Submit Button */}
+            
             <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}>
-                <LinearGradient
-                    colors={isLoading ? ['#bdc3c7', '#a1a8ad'] : [COLOR_PRIMARY, COLOR_PRIMARY]}
-                    style={styles.submitButtonGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}>
-                        <Text style={styles.submitButtonText}>
-                          {isLoading ? 'Procesando...' : 'Completar Registro'}
-                        </Text>
-                        {!isLoading && <Check size={20} color="#fff" style={styles.submitButtonIcon}/>}
-                </LinearGradient>
+              style={styles.voiceAssistantButton}
+              onPress={playInstructions}>
+              <Text style={styles.voiceAssistantText}>
+                {isPlaying ? 'Detener instrucciones' : 'Activar instrucciones por voz'}
+              </Text>
+              <Mic size={20} color="#fff" style={styles.voiceAssistantIcon} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.footerText}>
-            Tus datos están protegidos y solo serán utilizados para los fines específicos de este programa. Si necesitas ayuda, llama al 800-123-4567.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Main form */}
+          <View style={styles.formContainer}>
+            <View style={styles.formInnerContainer}>
+              <ThemedText type="subtitle" style={styles.formSectionTitle}>
+                Información Personal
+              </ThemedText>
+
+              <InputField
+                label="Nombre Completo"
+                icon={<User size={20} color={COLOR_GRAY} />}
+                value={formData.fullName}
+                onChange={(value) => handleChange('fullName', value)}
+                placeholder="Escribe tu nombre y apellidos"
+                hint="Ingresa tu nombre como aparece en tu INE/IFE"
+              />
+
+              <InputField
+                label="Número de Teléfono"
+                icon={<Phone size={20} color={COLOR_GRAY} />}
+                value={formData.phone}
+                onChange={(value) => handleChange('phone', value)}
+                placeholder="10 dígitos"
+                keyboardType="phone-pad"
+                maxLength={10}
+                hint="Número donde podamos contactarte"
+                numbersOnly={true}
+              />
+
+              {/* Modified Address input with location button */}
+              <View style={styles.inputContainer}>
+                <View style={styles.labelContainer}>
+                  <Text style={styles.labelText}>
+                    Dirección<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Información', 'Dirección donde vives actualmente')} style={styles.hintButton}>
+                    <Info size={16} color={COLOR_GRAY} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.locationContainer}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      const addressInputRef = inputRefs.current?.addressRef;
+                      if (addressInputRef) {
+                        addressInputRef.focus();
+                      }
+                    }}
+                    style={[
+                      styles.inputWrapper,
+                      styles.locationInput,
+                      formData.address ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
+                    ]}
+                  >
+                    <View style={styles.iconWrapper}><MapPin size={20} color={COLOR_GRAY} /></View>
+                    <TextInput
+                      ref={(ref) => {
+                        if (inputRefs.current) {
+                          inputRefs.current.addressRef = ref;
+                        }
+                      }}
+                      style={styles.textInput}
+                      value={formData.address}
+                      onChangeText={(value) => handleChange('address', value)}
+                      placeholder="Calle, número, colonia, ciudad"
+                      placeholderTextColor={COLOR_GRAY}
+                    />
+                    {formData.address ? (
+                      <View style={styles.checkWrapper}>
+                        <Check size={18} color={COLOR_PRIMARY} />
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.locationButton,
+                      isGettingLocation && styles.locationButtonDisabled
+                    ]}
+                    onPress={getLocation}
+                    disabled={isGettingLocation || isLoading}
+                  >
+                    {isGettingLocation ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Navigation size={20} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <SelectField
+                label="Estado de Nacimiento"
+                icon={<MapPin size={20} color={COLOR_GRAY} />}
+                value={formData.birthState}
+                options={states}
+                onChange={(value) => handleChange('birthState', value)}
+                placeholder="Selecciona tu estado"
+                hint="Estado donde naciste según tu acta de nacimiento"
+              />
+
+              <DateInputField
+                label="Fecha de Nacimiento"
+                icon={<Calendar size={20} color={COLOR_GRAY} />}
+                value={formData.birthDate}
+                onChange={(value) => handleChange('birthDate', value)}
+                placeholder="DD/MM/AAAA"
+                hint="Formato: día/mes/año completo"
+              />
+
+              <SelectField
+                label="Sexo"
+                icon={<User size={20} color={COLOR_GRAY} />}
+                value={formData.gender}
+                options={genderOptions}
+                onChange={(value) => handleChange('gender', value)}
+                placeholder="Selecciona una opción"
+              />
+
+              {/* INE Photo Section - Updated for front and back */}
+              <View style={styles.inputContainer}>
+                
+
+                {/* Front of INE */}
+                <View style={styles.inePhotoContainer}>
+                  <Text style={styles.inePhotoLabel}>Frente de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  {photoPreviewFront ? (
+                    <View style={styles.photoPreviewContainer}>
+                      <Image
+                        source={{ uri: photoPreviewFront }}
+                        style={styles.photoPreviewImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.retakePhotoButton}
+                        onPress={() => !isLoading && handlePhotoCapture('front')}
+                        disabled={isLoading}>
+                        <Camera size={20} color="#000000" strokeWidth={2} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.takePhotoButton}
+                      onPress={() => !isLoading && handlePhotoCapture('front')}
+                      disabled={isLoading}>
+                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                        <Camera size={24} color="#000000" strokeWidth={2} />
+                      </View>
+                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                        Tomar foto del frente
+                      </Text>
+                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
+                        Asegúrate de que todos los datos sean legibles
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Back of INE */}
+                <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
+                  <Text style={styles.inePhotoLabel}>Reverso de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  {photoPreviewBack ? (
+                    <View style={styles.photoPreviewContainer}>
+                      <Image
+                        source={{ uri: photoPreviewBack }}
+                        style={styles.photoPreviewImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.retakePhotoButton}
+                        onPress={() => !isLoading && handlePhotoCapture('back')}
+                        disabled={isLoading}>
+                        <Camera size={20} color="#000000" strokeWidth={2} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.takePhotoButton}
+                      onPress={() => !isLoading && handlePhotoCapture('back')}
+                      disabled={isLoading}>
+                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                        <Camera size={24} color="#000000" strokeWidth={2} />
+                      </View>
+                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
+                        Tomar foto del reverso
+                      </Text>
+                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
+                        Asegúrate de que todos los datos sean legibles
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Terms and Conditions */}
+              <View style={styles.termsContainer}>
+                <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => !isLoading && setAgreedToTerms(!agreedToTerms)} // Disable if loading
+                  disabled={isLoading}>
+                  {agreedToTerms ? (
+                    <CheckSquare size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                  ) : (
+                    <Square size={24} color={COLOR_GRAY} />
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.termsText}>
+                  Al crear una cuenta, acepto los{' '}
+                  <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handleTermsLink : undefined}>
+                    Términos y Condiciones
+                  </Text>{' '}
+                  y el{' '}
+                  <Text style={[styles.linkText, isLoading && styles.disabledText]} onPress={!isLoading ? handlePrivacyLink : undefined}>
+                    Aviso de Privacidad
+                  </Text>{' '}
+                  del servicio.
+                </Text>
+              </View>
+
+              {/* Error Message */}
+              {showErrorMessage && (
+                <View style={styles.errorContainer}>
+                  <AlertCircle size={20} color={COLOR_ERROR} style={styles.errorIcon} />
+                  <Text style={styles.errorText}>
+                    Por favor completa todos los campos requeridos y acepta los términos y condiciones.
+                  </Text>
+                </View>
+              )}
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={isLoading}>
+                  <LinearGradient
+                      colors={isLoading ? ['#bdc3c7', '#a1a8ad'] : [COLOR_PRIMARY, COLOR_PRIMARY]}
+                      style={styles.submitButtonGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}>
+                          <Text style={styles.submitButtonText}>
+                            {isLoading ? 'Procesando...' : 'Completar Registro'}
+                          </Text>
+                          {!isLoading && <Check size={20} color="#fff" style={styles.submitButtonIcon}/>}
+                  </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.footerText}>
+              Tus datos están protegidos y solo serán utilizados para los fines específicos de este programa. Si necesitas ayuda, llama al 800-123-4567.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 // Define styles (This is a significant translation from Tailwind)
 const styles = StyleSheet.create({
-  safeArea: {
+  mainContainer: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220, // Adjust height as needed
+  },
+  safeArea: {
+    flex: 1,
   },
   container: {
     flex: 1,
   },
   scrollContentContainer: {
-      paddingBottom: 40, // Ensure space at the bottom
+    paddingBottom: 40, // Ensure space at the bottom
   },
-  // --- Loading Overlay Styles --- 
   loadingOverlay: {
-      ...StyleSheet.absoluteFillObject, // Cover entire screen
-      backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000, // Ensure it's on top
+    ...StyleSheet.absoluteFillObject, // Cover entire screen
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000, // Ensure it's on top
   },
   loadingText: {
-      marginTop: 10,
-      fontSize: 16,
-      color: COLOR_PRIMARY,
-      fontWeight: '500',
+    marginTop: 10,
+    fontSize: 16,
+    color: COLOR_PRIMARY,
+    fontWeight: '500',
   },
-  // --- End Loading Overlay Styles --- 
+  headerContainer: {
+    width: '100%',
+    overflow: 'hidden',
+  },
   header: {
-    paddingTop: 30, // Adjust as needed for status bar height
-    paddingBottom: 40, // Increased padding below header content
+    paddingTop: 70,
+    paddingBottom: 20,
     paddingHorizontal: 16,
-    alignItems: 'center', // Center items horizontally
+    alignItems: 'center',
+    width: '100%',
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    top: 70,
+    zIndex: 10,
+  },
+  headerTitle: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 20, // Add margin to create space between title and button
   },
   voiceAssistantButton: {
     flexDirection: 'row',
@@ -766,7 +1136,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    marginBottom: 20, // Space below the button
+    marginTop: 5, // Space above the button
   },
   voiceAssistantText: {
     color: '#fff',
@@ -776,20 +1146,13 @@ const styles = StyleSheet.create({
   voiceAssistantIcon: {
       // marginLeft added automatically by space in Text component
   },
-  headerTitle: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
   formContainer: {
-    flex: 1,
-    marginTop: -24, // Pull the form container up slightly over the header bottom
     backgroundColor: Colors.light.background,
     borderTopLeftRadius: 24, // Match rounded-t-3xl
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
     paddingTop: 24, // Add padding inside the container
-    zIndex: 10,
+    marginTop: 20, // Add margin to create space after header
   },
   formInnerContainer: {
     backgroundColor: '#fff', // White card background
@@ -1072,5 +1435,46 @@ const styles = StyleSheet.create({
     color: COLOR_TEXT_SECONDARY,
     marginBottom: 8,
     fontWeight: '500',
+  },
+  dateInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateInput: {
+    paddingVertical: 12,
+    fontSize: 16,
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  dateInputSeparator: {
+    fontSize: 16,
+    color: COLOR_GRAY,
+    paddingHorizontal: 4,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationInput: {
+    flex: 1,
+  },
+  locationButton: {
+    backgroundColor: COLOR_PRIMARY,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  locationButtonDisabled: {
+    backgroundColor: COLOR_GRAY,
+    opacity: 0.7,
   },
 }); 
