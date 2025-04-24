@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const userDataDefault = {
     name: userData.fullName || "Miguel Rodríguez",
     cooperative: "Cooperativa San Juan",
+    address: userData.address || "Sin dirección registrada",
     currentCredit: 52000,
     availableCredit: 78000,
     creditScore: 720,
@@ -53,7 +54,10 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.welcomeText}>Bienvenido,</Text>
           <Text style={styles.userName}>{userDataDefault.name}</Text>
-          <Text style={styles.cooperativeText}>{userDataDefault.cooperative}</Text>
+          <View style={styles.locationContainer}>
+            <Feather name="map-pin" size={12} color={Colors.light.icon} />
+            <Text style={styles.locationText}>{userDataDefault.address}</Text>
+          </View>
         </View>
         
         <View style={[
@@ -205,9 +209,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.light.text,
   },
-  cooperativeText: {
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationText: {
     fontSize: 14,
     color: Colors.light.icon,
+    marginLeft: 4,
   },
   connectionBadge: {
     flexDirection: 'row',

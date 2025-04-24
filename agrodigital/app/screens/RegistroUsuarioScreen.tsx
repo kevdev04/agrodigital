@@ -32,6 +32,7 @@ import {
   CheckSquare, // Example for Checkbox checked
   Square, // Example for Checkbox unchecked
   X,
+  Navigation,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
@@ -39,6 +40,7 @@ import { useRouter } from 'expo-router'; // Import useRouter
 import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
 import { useUser } from '@/contexts/UserContext';
+import * as Location from 'expo-location'; // Import Location
 
 const COLOR_GRAY = Colors.light.icon; 
 const COLOR_PRIMARY = Colors.light.tint;
@@ -458,12 +460,17 @@ export default function RegistroUsuarioScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
   const [capturingFront, setCapturingFront] = useState(true); // Track which side we're capturing
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   // Request camera permissions on component mount
   useEffect(() => {
     (async () => {
       const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
       setCameraPermission(cameraStatus.status === 'granted');
+      
+      const locationStatus = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(locationStatus.status === 'granted');
     })();
   }, []);
 
@@ -517,6 +524,66 @@ export default function RegistroUsuarioScreen() {
     } catch (error) {
       console.error('Error capturando foto:', error);
       Alert.alert('Error', 'No se pudo tomar la foto.');
+    }
+  };
+
+  // New function to get the user's current location
+  const getLocation = async () => {
+    if (!locationPermission) {
+      Alert.alert(
+        'Permiso requerido',
+        'Necesitamos permiso para acceder a tu ubicación',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Configuración',
+            onPress: () => Platform.OS === 'ios'
+              ? Linking.openURL('app-settings:')
+              : Linking.openSettings()
+          }
+        ]
+      );
+      return;
+    }
+
+    try {
+      setIsGettingLocation(true);
+
+      // Get the user's current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+      });
+
+      // Reverse geocode to get the address from coordinates
+      const [geocode] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (geocode) {
+        // Format the address
+        const formattedAddress = [
+          geocode.street,
+          geocode.streetNumber,
+          geocode.district,
+          geocode.city,
+          geocode.region,
+          geocode.postalCode,
+          geocode.country
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        // Set the address in the form
+        handleChange('address', formattedAddress);
+      } else {
+        Alert.alert('Error', 'No se pudo obtener la dirección desde tu ubicación.');
+      }
+    } catch (error) {
+      console.error('Error obteniendo ubicación:', error);
+      Alert.alert('Error', 'No se pudo obtener tu ubicación.');
+    } finally {
+      setIsGettingLocation(false);
     }
   };
 
@@ -694,6 +761,13 @@ export default function RegistroUsuarioScreen() {
     router.back();
   };
 
+  // Reference object for input fields
+  const inputRefs = useRef<{
+    addressRef: TextInput | null;
+  }>({
+    addressRef: null,
+  });
+
   return (
     <View style={styles.mainContainer}>
       <LinearGradient
@@ -766,14 +840,67 @@ export default function RegistroUsuarioScreen() {
                 numbersOnly={true}
               />
 
-              <InputField
-                label="Dirección"
-                icon={<MapPin size={20} color={COLOR_GRAY} />}
-                value={formData.address}
-                onChange={(value) => handleChange('address', value)}
-                placeholder="Calle, número, colonia, ciudad"
-                hint="Dirección donde vives actualmente"
-              />
+              {/* Modified Address input with location button */}
+              <View style={styles.inputContainer}>
+                <View style={styles.labelContainer}>
+                  <Text style={styles.labelText}>
+                    Dirección<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                  <TouchableOpacity onPress={() => Alert.alert('Información', 'Dirección donde vives actualmente')} style={styles.hintButton}>
+                    <Info size={16} color={COLOR_GRAY} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.locationContainer}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      const addressInputRef = inputRefs.current?.addressRef;
+                      if (addressInputRef) {
+                        addressInputRef.focus();
+                      }
+                    }}
+                    style={[
+                      styles.inputWrapper,
+                      styles.locationInput,
+                      formData.address ? styles.inputWrapperFocused : styles.inputWrapperBlurred,
+                    ]}
+                  >
+                    <View style={styles.iconWrapper}><MapPin size={20} color={COLOR_GRAY} /></View>
+                    <TextInput
+                      ref={(ref) => {
+                        if (inputRefs.current) {
+                          inputRefs.current.addressRef = ref;
+                        }
+                      }}
+                      style={styles.textInput}
+                      value={formData.address}
+                      onChangeText={(value) => handleChange('address', value)}
+                      placeholder="Calle, número, colonia, ciudad"
+                      placeholderTextColor={COLOR_GRAY}
+                    />
+                    {formData.address ? (
+                      <View style={styles.checkWrapper}>
+                        <Check size={18} color={COLOR_PRIMARY} />
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.locationButton,
+                      isGettingLocation && styles.locationButtonDisabled
+                    ]}
+                    onPress={getLocation}
+                    disabled={isGettingLocation || isLoading}
+                  >
+                    {isGettingLocation ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Navigation size={20} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <SelectField
                 label="Estado de Nacimiento"
@@ -1324,5 +1451,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLOR_GRAY,
     paddingHorizontal: 4,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationInput: {
+    flex: 1,
+  },
+  locationButton: {
+    backgroundColor: COLOR_PRIMARY,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  locationButtonDisabled: {
+    backgroundColor: COLOR_GRAY,
+    opacity: 0.7,
   },
 }); 
