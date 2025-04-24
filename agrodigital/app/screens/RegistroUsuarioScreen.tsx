@@ -37,7 +37,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router'; // Import useRouter
 import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
-import { userService } from '../../api/userService';
+import { useUser } from '@/contexts/UserContext';
 
 // --- Constants for colors not defined in Colors.ts ---
 const COLOR_GRAY = Colors.light.icon; // Use existing gray for icons/placeholders
@@ -237,6 +237,7 @@ function SelectField({
 export default function RegistroUsuarioScreen() {
   const router = useRouter(); // Initialize router
   const [isLoading, setIsLoading] = useState(false); // Add loading state
+  const { updateUserData } = useUser(); // Get updateUserData from context
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     phone: '',
@@ -331,32 +332,37 @@ export default function RegistroUsuarioScreen() {
       if (isFilled && agreedToTerms) {
         console.log("Preparando datos para registro:", formData);
         
-        // Crear objeto con los datos del usuario para enviar a la API
-        const userData = {
-          userId: `user-${Date.now()}`,  // Generar un ID único
+        // Skip API call since we're not using the service anymore
+        
+        // Generate email from name
+        const email = `${formData.fullName.replace(/\s+/g, '.').toLowerCase()}@agrodigital.com`;
+        
+        // Save user data to context
+        updateUserData({
           fullName: formData.fullName,
-          email: `${formData.fullName.replace(/\s+/g, '').toLowerCase()}@ejemplo.com`, // Email provisional
-          password: "Password123!", // Contraseña provisional
           phone: formData.phone,
           address: formData.address,
           birthState: formData.birthState,
           birthDate: formData.birthDate,
           gender: formData.gender,
-          createdAt: new Date().toISOString()
-        };
+          email: email,
+          // We'll generate CURP and RFC later in Historial.tsx
+        });
         
-        console.log("Enviando datos de usuario:", userData);
-        
-        // Llamar a la API para registrar el usuario
-        const response = await userService.register(userData);
-        console.log("Usuario registrado exitosamente:", response.data);
+        // Wait a bit to simulate processing
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Navegar a la pantalla de verificación SMS
         try {
           router.push({
             pathname: "/screens/VerificacionSMSScreen",
             params: {
-              phone: formData.phone
+              phone: formData.phone,
+              fullName: formData.fullName,
+              address: formData.address,
+              birthState: formData.birthState,
+              birthDate: formData.birthDate,
+              gender: formData.gender
             }
           });
         } catch (error) {
@@ -369,10 +375,10 @@ export default function RegistroUsuarioScreen() {
         setShowErrorMessage(true);
       }
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
+      console.error("Error en procesamiento:", error);
       Alert.alert(
         "Error",
-        "Hubo un problema al registrar tu perfil. Por favor intenta de nuevo más tarde."
+        "Hubo un problema al procesar tu información. Por favor intenta de nuevo."
       );
       setShowErrorMessage(true);
     } finally {
@@ -581,21 +587,12 @@ export default function RegistroUsuarioScreen() {
 
             {/* INE Photo Section - Updated for front and back */}
             <View style={styles.inputContainer}>
-              <View style={styles.labelContainer}>
-                <Text style={styles.labelText}>
-                  Credencial INE
-                  <Text style={styles.requiredAsterisk}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  onPress={() => Alert.alert('Info INE', 'Necesitamos ambos lados de tu credencial de elector')}
-                  style={styles.hintButton}>
-                  <Info size={16} color={COLOR_GRAY} />
-                </TouchableOpacity>
-              </View>
+              
 
               {/* Front of INE */}
               <View style={styles.inePhotoContainer}>
-                <Text style={styles.inePhotoLabel}>Frente de la INE:</Text>
+                <Text style={styles.inePhotoLabel}>Frente de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
                 {photoPreviewFront ? (
                   <View style={styles.photoPreviewContainer}>
                     <Image
@@ -607,7 +604,7 @@ export default function RegistroUsuarioScreen() {
                       style={styles.retakePhotoButton}
                       onPress={() => !isLoading && handlePhotoCapture('front')}
                       disabled={isLoading}>
-                      <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                      <Camera size={20} color="#000000" strokeWidth={2} />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -615,8 +612,8 @@ export default function RegistroUsuarioScreen() {
                     style={styles.takePhotoButton}
                     onPress={() => !isLoading && handlePhotoCapture('front')}
                     disabled={isLoading}>
-                    <View style={styles.takePhotoButtonIconBg}>
-                      <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                    <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                      <Camera size={24} color="#000000" strokeWidth={2} />
                     </View>
                     <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
                       Tomar foto del frente
@@ -630,7 +627,8 @@ export default function RegistroUsuarioScreen() {
 
               {/* Back of INE */}
               <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
-                <Text style={styles.inePhotoLabel}>Reverso de la INE:</Text>
+                <Text style={styles.inePhotoLabel}>Reverso de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                </Text>
                 {photoPreviewBack ? (
                   <View style={styles.photoPreviewContainer}>
                     <Image
@@ -642,7 +640,7 @@ export default function RegistroUsuarioScreen() {
                       style={styles.retakePhotoButton}
                       onPress={() => !isLoading && handlePhotoCapture('back')}
                       disabled={isLoading}>
-                      <Camera size={20} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                      <Camera size={20} color="#000000" strokeWidth={2} />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -650,8 +648,8 @@ export default function RegistroUsuarioScreen() {
                     style={styles.takePhotoButton}
                     onPress={() => !isLoading && handlePhotoCapture('back')}
                     disabled={isLoading}>
-                    <View style={styles.takePhotoButtonIconBg}>
-                      <Camera size={24} color={isLoading ? COLOR_GRAY : COLOR_PRIMARY} />
+                    <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
+                      <Camera size={24} color="#000000" strokeWidth={2} />
                     </View>
                     <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
                       Tomar foto del reverso

@@ -4,14 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useUser } from '../../contexts/UserContext';
 
 export default function PerfilScreen() {
     const router = useRouter();
+    const { userData } = useUser();
     
     const handleLogout = () => {
         // Navigate to the welcome screen (root index.tsx)
         router.replace('/index');
     };
+    
+    // Use placeholder if no user data is available
+    const displayName = userData.fullName || 'Usuario AgroDigital';
+    const displayEmail = userData.email || 'usuario@agrodigital.com';
+    const displayPhone = userData.phone || '+52 123 456 7890';
+    const displayLocation = userData.birthState || 'Región Agrícola';
+    const displayAddress = userData.address || '';
     
     return (
         <SafeAreaView style={styles.container}>
@@ -24,18 +33,32 @@ export default function PerfilScreen() {
                     source={require('../../assets/images/logo.png')}
                     style={styles.profileImage}
                 />
-                <Text style={styles.name}>Usuario AgroDigital</Text>
-                <Text style={styles.email}>usuario@agrodigital.com</Text>
+                <Text style={styles.name}>{displayName}</Text>
+                <Text style={styles.email}>{displayEmail}</Text>
 
                 <View style={styles.infoRow}>
                     <Feather name="map-pin" size={18} color={Colors.light.icon} />
-                    <Text style={styles.infoText}>Región Agrícola</Text>
+                    <Text style={styles.infoText}>{displayLocation}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                     <Feather name="phone" size={18} color={Colors.light.icon} />
-                    <Text style={styles.infoText}>+52 123 456 7890</Text>
+                    <Text style={styles.infoText}>{displayPhone}</Text>
                 </View>
+                
+                {displayAddress && (
+                    <View style={styles.infoRow}>
+                        <Feather name="home" size={18} color={Colors.light.icon} />
+                        <Text style={styles.infoText}>{displayAddress}</Text>
+                    </View>
+                )}
+                
+                {userData.birthDate && (
+                    <View style={styles.infoRow}>
+                        <Feather name="calendar" size={18} color={Colors.light.icon} />
+                        <Text style={styles.infoText}>{userData.birthDate}</Text>
+                    </View>
+                )}
             </View>
 
             <View style={styles.settingsSection}>

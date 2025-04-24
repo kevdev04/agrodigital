@@ -20,7 +20,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="cultivos"
                 options={{
-                    title: 'Financiamientos',
+                    title: 'Financiamiento',
                     tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={24} color={color} />,
                 }}
             />

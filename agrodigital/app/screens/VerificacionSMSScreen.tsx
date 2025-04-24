@@ -39,8 +39,13 @@ export default function VerificacionSMSScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   
-  // Get phone number from params (if passed)
+  // Get parameters from params (if passed)
   const phoneNumber = params.phone ? String(params.phone) : '';
+  const fullName = params.fullName ? String(params.fullName) : '';
+  const address = params.address ? String(params.address) : '';
+  const birthState = params.birthState ? String(params.birthState) : '';
+  const birthDate = params.birthDate ? String(params.birthDate) : '';
+  const gender = params.gender ? String(params.gender) : '';
   
   // State for the code inputs
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -127,8 +132,18 @@ export default function VerificacionSMSScreen() {
       // For demo purposes, we'll use a fixed code "123456"
       const enteredCode = code.join('');
       if (enteredCode === '123456') {
-        // Success! Navigate to the main app tabs
-        router.replace("/(tabs)");
+        // Success! Navigate to the Historial screen instead of tabs
+        router.replace({
+          pathname: "/screens/Historial",
+          params: {
+            fullName,
+            phoneNumber,
+            address,
+            birthState,
+            birthDate,
+            gender
+          }
+        });
       } else {
         setError('Código incorrecto. Por favor verifica e intenta nuevamente.');
       }
