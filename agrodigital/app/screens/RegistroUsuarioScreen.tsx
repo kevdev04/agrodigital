@@ -41,6 +41,7 @@ import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
 import { useUser } from '@/contexts/UserContext';
 import * as Location from 'expo-location'; // Import Location
+import { authService } from '@/api/authService'; // Import the authService
 
 const COLOR_GRAY = Colors.light.icon; 
 const COLOR_PRIMARY = Colors.light.tint;
@@ -601,10 +602,11 @@ export default function RegistroUsuarioScreen() {
       if (isFilled && agreedToTerms) {
         console.log("Preparando datos para registro:", formData);
         
-        // Skip API call since we're not using the service anymore
-        
         // Generate email from name
         const email = `${formData.fullName.replace(/\s+/g, '.').toLowerCase()}@agrodigital.com`;
+        
+        // Generate a unique username (non-email format) for Cognito
+        const username = `user_${formData.phone}`;
         
         // Save user data to context
         updateUserData({
@@ -615,11 +617,47 @@ export default function RegistroUsuarioScreen() {
           birthDate: formData.birthDate,
           gender: formData.gender,
           email: email,
+          username: username, // Store the non-email username
           // We'll generate CURP and RFC later in Historial.tsx
         });
         
-        // Wait a bit to simulate processing
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Cognito registration (if enabled)
+        if (process.env.EXPO_PUBLIC_USE_COGNITO === 'true') {
+          try {
+            // Generate a temporary password
+            const tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
+            
+            // Register user with Cognito
+            await authService.register({
+              username: username,
+              password: tempPassword, // Will be changed by user later
+              email: email,
+              phone: formData.phone,
+              fullName: formData.fullName,
+              address: formData.address,
+              birthState: formData.birthState,
+              birthDate: formData.birthDate,
+              gender: formData.gender
+            });
+            
+            console.log("Usuario registrado en Cognito correctamente");
+          } catch (error) {
+            const cognitoError = error as { code?: string; message?: string };
+            console.error("Error en registro con Cognito:", cognitoError);
+            
+            if (cognitoError.code === 'UsernameExistsException') {
+              Alert.alert("Error", "Este usuario ya existe. Por favor inicia sesión o usa otro número de teléfono.");
+              setIsLoading(false);
+              return;
+            }
+            
+            // For demo purposes, continue anyway
+            console.log("Continuando el flujo para demostración...");
+          }
+        } else {
+          // Wait a bit to simulate processing
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         
         // Navegar a la pantalla de verificación SMS
         try {
@@ -631,7 +669,8 @@ export default function RegistroUsuarioScreen() {
               address: formData.address,
               birthState: formData.birthState,
               birthDate: formData.birthDate,
-              gender: formData.gender
+              gender: formData.gender,
+              username: username // Pass the username to the verification screen
             }
           });
         } catch (error) {

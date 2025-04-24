@@ -16,7 +16,8 @@ export const userService = {
     register: (userData) => {
         // Asegurarse de que los datos estén en el formato que espera el backend
         const formattedData = {
-            userId: userData.userId,
+            userId: userData.userId || userData.username,
+            username: userData.username,
             email: userData.email,
             password: userData.password,
             name: userData.fullName,

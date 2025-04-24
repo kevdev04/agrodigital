@@ -13,6 +13,7 @@ export const UserProvider = ({ children }) => {
     birthDate: '',
     gender: '',
     email: '',
+    username: '',
     curp: '',
     rfc: ''
   });

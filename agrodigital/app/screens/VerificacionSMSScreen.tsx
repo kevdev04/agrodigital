@@ -24,6 +24,7 @@ import {
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { authService } from '@/api/authService'; // Import the authService
 
 // Color constants
 const COLOR_PRIMARY = Colors.light.tint;
@@ -46,6 +47,7 @@ export default function VerificacionSMSScreen() {
   const birthState = params.birthState ? String(params.birthState) : '';
   const birthDate = params.birthDate ? String(params.birthDate) : '';
   const gender = params.gender ? String(params.gender) : '';
+  const username = params.username ? String(params.username) : '';
   
   // State for the code inputs
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -126,29 +128,44 @@ export default function VerificacionSMSScreen() {
     setError('');
     
     try {
-      // Simulate verification delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // For demo purposes, we'll use a fixed code "123456"
       const enteredCode = code.join('');
-      if (enteredCode === '123456') {
-        // Success! Navigate to the Historial screen instead of tabs
-        router.replace({
-          pathname: "/screens/Historial",
-          params: {
-            fullName,
-            phoneNumber,
-            address,
-            birthState,
-            birthDate,
-            gender
-          }
-        });
-      } else {
+      
+      // For demo purposes, either use the fixed code or call the actual Cognito service
+      if (process.env.EXPO_PUBLIC_USE_COGNITO === 'true') {
+        // Use Cognito for confirmation
+        await authService.confirmSignUp(username, enteredCode);
+      } else if (enteredCode !== '123456') {
+        // For demo without Cognito, check against fixed code
         setError('Código incorrecto. Por favor verifica e intenta nuevamente.');
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
-      setError('Error al verificar. Por favor intenta nuevamente.');
+      
+      // Success! Navigate to the Historial screen
+      router.replace({
+        pathname: "/screens/Historial",
+        params: {
+          fullName,
+          phoneNumber,
+          address,
+          birthState,
+          birthDate,
+          gender,
+          username
+        }
+      });
+    } catch (error) {
+      console.error('Error al verificar:', error);
+      
+      // Handle specific Cognito errors
+      const cognitoError = error as { code?: string; message?: string };
+      if (cognitoError.code === 'CodeMismatchException') {
+        setError('Código incorrecto. Por favor verifica e intenta nuevamente.');
+      } else if (cognitoError.code === 'ExpiredCodeException') {
+        setError('Código expirado. Por favor solicita un nuevo código.');
+      } else {
+        setError('Error al verificar. Por favor intenta nuevamente.');
+      }
     } finally {
       setIsLoading(false);
     }

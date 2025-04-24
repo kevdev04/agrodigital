@@ -409,6 +409,7 @@ export default function HistorialScreen() {
   const birthState = params.birthState ? String(params.birthState) : '';
   const birthDate = params.birthDate ? String(params.birthDate) : '';
   const gender = params.gender ? String(params.gender) : '';
+  const username = params.username ? String(params.username) : '';
   
   // Generate CURP and RFC bases - store in refs to avoid recalculation on each render
   const parsedNameRef = useRef(parseFullName(fullName));
@@ -443,10 +444,11 @@ export default function HistorialScreen() {
       updateUserData({
         curp: curpRef.current,
         rfc: rfcRef.current,
+        username: username, // Include the username from parameters
       });
       hasUpdatedUserData.current = true;
     }
-  }, [updateUserData]);
+  }, [updateUserData, username]);
 
   // Simulación de datos con CURP y RFC generados (con homoclave placeholder)
   const [userData2] = useState(() => {
