@@ -33,6 +33,10 @@ import {
   Square, // Example for Checkbox unchecked
   X,
   Navigation,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
@@ -41,6 +45,7 @@ import { Audio } from 'expo-av'; // Import Audio from expo-av
 import * as ImagePicker from 'expo-image-picker'; // Import ImagePicker
 import { useUser } from '@/contexts/UserContext';
 import * as Location from 'expo-location'; // Import Location
+import { Auth } from 'aws-amplify';
 
 const COLOR_GRAY = Colors.light.icon; 
 const COLOR_PRIMARY = Colors.light.tint;
@@ -74,6 +79,7 @@ interface InputFieldProps {
   required?: boolean;
   hint?: string;
   numbersOnly?: boolean;
+  isPhoneNumber?: boolean;
 }
 
 function InputField({
@@ -87,6 +93,7 @@ function InputField({
   required = true,
   hint,
   numbersOnly = false,
+  isPhoneNumber = false,
 }: InputFieldProps) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -98,8 +105,21 @@ function InputField({
   };
 
   const handleTextChange = (text: string) => {
-    // If numbersOnly is true, filter out non-numeric characters
-    if (numbersOnly) {
+    // Handle phone numbers differently to allow + symbol
+    if (isPhoneNumber) {
+      // Allow numbers and plus sign for phone numbers (especially for international format)
+      const phoneNumberValue = text.replace(/[^\d+]/g, '');
+      
+      // Ensure only one + and it's at the beginning
+      if (phoneNumberValue.includes('+') && !phoneNumberValue.startsWith('+')) {
+        const digitsOnly = phoneNumberValue.replace(/\+/g, '');
+        onChange('+' + digitsOnly);
+      } else {
+        onChange(phoneNumberValue);
+      }
+    }
+    // Regular numbers-only handling
+    else if (numbersOnly) {
       const numericValue = text.replace(/[^0-9]/g, '');
       onChange(numericValue);
     } else {
@@ -140,7 +160,7 @@ function InputField({
           onChangeText={handleTextChange}
           placeholder={placeholder}
           placeholderTextColor={COLOR_GRAY}
-          keyboardType={numbersOnly ? 'numeric' : keyboardType}
+          keyboardType={numbersOnly || isPhoneNumber ? 'phone-pad' : keyboardType}
           maxLength={maxLength}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -462,6 +482,11 @@ export default function RegistroUsuarioScreen() {
   const [capturingFront, setCapturingFront] = useState(true); // Track which side we're capturing
   const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
   // Request camera permissions on component mount
   useEffect(() => {
@@ -588,70 +613,152 @@ export default function RegistroUsuarioScreen() {
   };
 
   const handleSubmit = async () => {
-    // Hide previous error messages
-    setShowErrorMessage(false);
-    // Start loading
     setIsLoading(true);
-
-    // Validate form
-    const requiredFields: Array<keyof FormData> = ['fullName', 'phone', 'address', 'birthState', 'birthDate', 'gender', 'inePhotoFront', 'inePhotoBack'];
-    const isFilled = requiredFields.every(field => Boolean(formData[field]));
+    setError('');
 
     try {
-      if (isFilled && agreedToTerms) {
-        console.log("Preparando datos para registro:", formData);
-        
-        // Skip API call since we're not using the service anymore
-        
-        // Generate email from name
-        const email = `${formData.fullName.replace(/\s+/g, '.').toLowerCase()}@agrodigital.com`;
-        
-        // Save user data to context
-        updateUserData({
-          fullName: formData.fullName,
-          phone: formData.phone,
-          address: formData.address,
-          birthState: formData.birthState,
-          birthDate: formData.birthDate,
-          gender: formData.gender,
-          email: email,
-          // We'll generate CURP and RFC later in Historial.tsx
+      // Validate email
+      if (!email.trim()) {
+        setError('Por favor ingresa tu correo electrónico.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Simple email validation
+      const emailRegex = /\S+@\S+\.\S+/;
+      if (!emailRegex.test(email.trim())) {
+        setError('Por favor ingresa un correo electrónico válido.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Validate password
+      if (!password) {
+        setError('Por favor ingresa una contraseña.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (password.length < 8) {
+        setError('La contraseña debe tener al menos 8 caracteres.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        setError('Las contraseñas no coinciden.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Basic form validation
+      if (!formData.fullName) {
+        setError('Por favor ingresa tu nombre completo.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!formData.phone || formData.phone.length < 10) {
+        setError('Por favor ingresa un número de teléfono válido.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!formData.birthDate) {
+        setError('Por favor ingresa tu fecha de nacimiento.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!agreedToTerms) {
+        setError('Debes aceptar los términos y condiciones para continuar.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Sign up with Amplify Auth using Gen 1 syntax
+        const signUpResult = await Auth.signUp({
+          username: email.trim(),
+          password,
+          attributes: {
+            name: formData.fullName,
+            phone_number: formData.phone,
+            // Add other user attributes as needed
+          },
         });
         
-        // Wait a bit to simulate processing
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Navegar a la pantalla de verificación SMS
-        try {
+        if (signUpResult.userConfirmed) {
+          // User is already confirmed
+          Alert.alert(
+            "Registro exitoso",
+            "Tu cuenta ha sido creada exitosamente.",
+            [
+              {
+                text: "Iniciar sesión",
+                onPress: () => {
+                  router.push('/screens/IniciarSesionScreen' as any);
+                },
+              },
+            ]
+          );
+        } else {
+          // Handle confirmation step
+          console.log('User needs confirmation via code sent to', 
+              signUpResult.codeDeliveryDetails?.DeliveryMedium || 'registered email/phone');
+          
+          // Navigate to SMS verification screen
           router.push({
-            pathname: "/screens/VerificacionSMSScreen",
+            pathname: '/screens/VerificacionSMSScreen' as any,
             params: {
               phone: formData.phone,
               fullName: formData.fullName,
-              address: formData.address,
-              birthState: formData.birthState,
-              birthDate: formData.birthDate,
-              gender: formData.gender
+              email: email.trim(),
+              userId: signUpResult.userSub || '',
+              isSignUp: 'true', // Flag to indicate this is from sign up flow
             }
           });
-        } catch (error) {
-          console.error("Error en navegación:", error);
-          
-          // Como alternativa, navegar directamente a las pestañas
-          router.replace("/(tabs)");
         }
-      } else {
-        setShowErrorMessage(true);
+      } catch (authError: any) {
+        console.error('Error durante la autenticación:', authError);
+        
+        // Check if this is a network error and we're in dev mode
+        if (authError.message && authError.message.includes('Network error')) {
+          // For development only - simulate success to test the UI flow
+          if (__DEV__) {
+            console.log('DEV MODE: Simulating successful registration');
+            
+            // Navigate to SMS verification screen for testing the flow
+            router.push({
+              pathname: '/screens/VerificacionSMSScreen' as any,
+              params: {
+                phone: formData.phone,
+                fullName: formData.fullName,
+                email: email.trim(),
+                userId: 'dev-mode-user-id',
+                isSignUp: 'true',
+              }
+            });
+          } else {
+            setError('Error de conexión. Por favor verifica tu conexión a internet e intenta nuevamente.');
+          }
+        } else {
+          throw authError; // Re-throw to be caught by the outer catch
+        }
       }
-    } catch (error) {
-      console.error("Error en procesamiento:", error);
-      Alert.alert(
-        "Error",
-        "Hubo un problema al procesar tu información. Por favor intenta de nuevo."
-      );
-      setShowErrorMessage(true);
+    } catch (err: any) {
+      console.error('Error durante el registro:', err);
+      const errorMessage = err.message || 'Error durante el registro. Por favor intenta nuevamente.';
+      
+      if (errorMessage.includes('Username exists')) {
+        setError('El correo electrónico ya está registrado. Por favor usa otro o inicia sesión.');
+      } else if (errorMessage.includes('Password did not conform with policy')) {
+        setError('La contraseña debe tener al menos 8 caracteres, incluyendo números, letras mayúsculas y minúsculas.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   };
 
@@ -833,11 +940,11 @@ export default function RegistroUsuarioScreen() {
                 icon={<Phone size={20} color={COLOR_GRAY} />}
                 value={formData.phone}
                 onChange={(value) => handleChange('phone', value)}
-                placeholder="10 dígitos"
+                placeholder="Código de país + número"
                 keyboardType="phone-pad"
-                maxLength={10}
-                hint="Número donde podamos contactarte"
-                numbersOnly={true}
+                maxLength={15}
+                hint="Incluye el código de país (+52 para México)"
+                isPhoneNumber={true}
               />
 
               {/* Modified Address input with location button */}
@@ -930,82 +1037,107 @@ export default function RegistroUsuarioScreen() {
                 placeholder="Selecciona una opción"
               />
 
-              {/* INE Photo Section - Updated for front and back */}
+              {/* Email input */}
               <View style={styles.inputContainer}>
-                
-
-                {/* Front of INE */}
-                <View style={styles.inePhotoContainer}>
-                  <Text style={styles.inePhotoLabel}>Frente de la INE:<Text style={styles.requiredAsterisk}>*</Text>
+                <View style={styles.labelContainer}>
+                  <Text style={styles.labelText}>
+                    Correo electrónico<Text style={styles.requiredAsterisk}>*</Text>
                   </Text>
-                  {photoPreviewFront ? (
-                    <View style={styles.photoPreviewContainer}>
-                      <Image
-                        source={{ uri: photoPreviewFront }}
-                        style={styles.photoPreviewImage}
-                        resizeMode="cover"
-                      />
-                      <TouchableOpacity
-                        style={styles.retakePhotoButton}
-                        onPress={() => !isLoading && handlePhotoCapture('front')}
-                        disabled={isLoading}>
-                        <Camera size={20} color="#000000" strokeWidth={2} />
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.takePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('front')}
-                      disabled={isLoading}>
-                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
-                        <Camera size={24} color="#000000" strokeWidth={2} />
-                      </View>
-                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                        Tomar foto del frente
-                      </Text>
-                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                        Asegúrate de que todos los datos sean legibles
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
-
-                {/* Back of INE */}
-                <View style={[styles.inePhotoContainer, {marginTop: 16}]}>
-                  <Text style={styles.inePhotoLabel}>Reverso de la INE:<Text style={styles.requiredAsterisk}>*</Text>
-                  </Text>
-                  {photoPreviewBack ? (
-                    <View style={styles.photoPreviewContainer}>
-                      <Image
-                        source={{ uri: photoPreviewBack }}
-                        style={styles.photoPreviewImage}
-                        resizeMode="cover"
-                      />
-                      <TouchableOpacity
-                        style={styles.retakePhotoButton}
-                        onPress={() => !isLoading && handlePhotoCapture('back')}
-                        disabled={isLoading}>
-                        <Camera size={20} color="#000000" strokeWidth={2} />
-                      </TouchableOpacity>
+                <View style={[
+                  styles.inputWrapper,
+                  styles.inputWrapperBlurred,
+                ]}>
+                  <View style={styles.iconWrapper}>
+                    <Mail size={20} color={COLOR_GRAY} />
+                  </View>
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setError('');
+                    }}
+                    placeholder="ejemplo@correo.com"
+                    placeholderTextColor={COLOR_GRAY}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  {email ? (
+                    <View style={styles.checkWrapper}>
+                      <Check size={18} color={COLOR_PRIMARY} />
                     </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.takePhotoButton}
-                      onPress={() => !isLoading && handlePhotoCapture('back')}
-                      disabled={isLoading}>
-                      <View style={[styles.takePhotoButtonIconBg, { backgroundColor: '#e6f7ef' }]}>
-                        <Camera size={24} color="#000000" strokeWidth={2} />
-                      </View>
-                      <Text style={[styles.takePhotoButtonText, isLoading && styles.disabledText]}>
-                        Tomar foto del reverso
-                      </Text>
-                      <Text style={[styles.takePhotoButtonHint, isLoading && styles.disabledText]}>
-                        Asegúrate de que todos los datos sean legibles
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  ) : null}
                 </View>
               </View>
+
+              {/* Password input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.labelContainer}>
+                  <Text style={styles.labelText}>
+                    Contraseña<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                </View>
+                <View style={[
+                  styles.inputWrapper,
+                  styles.inputWrapperBlurred,
+                ]}>
+                  <View style={styles.iconWrapper}>
+                    <Lock size={20} color={COLOR_GRAY} />
+                  </View>
+                  <TextInput
+                    style={styles.textInput}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      setError('');
+                    }}
+                    placeholder="Mínimo 8 caracteres"
+                    placeholderTextColor={COLOR_GRAY}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.visibilityToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color={COLOR_GRAY} />
+                    ) : (
+                      <Eye size={20} color={COLOR_GRAY} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Confirm Password input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.labelContainer}>
+                  <Text style={styles.labelText}>
+                    Confirmar contraseña<Text style={styles.requiredAsterisk}>*</Text>
+                  </Text>
+                </View>
+                <View style={[
+                  styles.inputWrapper,
+                  styles.inputWrapperBlurred,
+                ]}>
+                  <View style={styles.iconWrapper}>
+                    <Lock size={20} color={COLOR_GRAY} />
+                  </View>
+                  <TextInput
+                    style={styles.textInput}
+                    value={confirmPassword}
+                    onChangeText={(text) => {
+                      setConfirmPassword(text);
+                      setError('');
+                    }}
+                    placeholder="Confirma tu contraseña"
+                    placeholderTextColor={COLOR_GRAY}
+                    secureTextEntry={!showPassword}
+                  />
+                </View>
+              </View>
+
+              
 
               {/* Terms and Conditions */}
               <View style={styles.termsContainer}>
@@ -1033,14 +1165,12 @@ export default function RegistroUsuarioScreen() {
               </View>
 
               {/* Error Message */}
-              {showErrorMessage && (
+              {error ? (
                 <View style={styles.errorContainer}>
                   <AlertCircle size={20} color={COLOR_ERROR} style={styles.errorIcon} />
-                  <Text style={styles.errorText}>
-                    Por favor completa todos los campos requeridos y acepta los términos y condiciones.
-                  </Text>
+                  <Text style={styles.errorText}>{error}</Text>
                 </View>
-              )}
+              ) : null}
 
               {/* Submit Button */}
               <TouchableOpacity
@@ -1476,5 +1606,8 @@ const styles = StyleSheet.create({
   locationButtonDisabled: {
     backgroundColor: COLOR_GRAY,
     opacity: 0.7,
+  },
+  visibilityToggle: {
+    padding: 8,
   },
 }); 

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Auth } from 'aws-amplify';
 
 // Color constants
@@ -33,40 +33,46 @@ const COLOR_ERROR_BORDER = '#FCA5A5';
 const COLOR_BORDER = '#E5E7EB';
 const COLOR_TEXT_SECONDARY = Colors.light.icon;
 
-export default function IniciarSesionScreen() {
+export default function ResetPasswordScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ email: string }>();
+  const email = params.email || '';
   
   // State for form fields and validation
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   // Form validation
   const validateForm = () => {
-    if (!email.trim()) {
-      setError('Por favor ingresa tu correo electrónico.');
+    if (!code.trim()) {
+      setError('Por favor ingresa el código de verificación.');
       return false;
     }
     
-    // Simple email validation
-    const emailRegex = /\S+@\S+\.\S+/;
-    if (!emailRegex.test(email.trim())) {
-      setError('Por favor ingresa un correo electrónico válido.');
+    if (!newPassword) {
+      setError('Por favor ingresa tu nueva contraseña.');
       return false;
     }
     
-    if (!password) {
-      setError('Por favor ingresa tu contraseña.');
+    if (newPassword.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return false;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
       return false;
     }
     
     return true;
   };
   
-  // Handle login with Amplify
-  const handleLogin = async () => {
+  // Handle password reset confirmation
+  const handleResetPassword = async () => {
     Keyboard.dismiss();
     setError('');
     
@@ -75,109 +81,34 @@ export default function IniciarSesionScreen() {
     setIsLoading(true);
     
     try {
-      try {
-        // Sign in with Amplify Auth Gen 1
-        const user = await Auth.signIn(email.trim(), password);
-        
-        if (user) {
-          // Check if user needs to complete additional challenges
-          if (user.challengeName === 'SMS_MFA' || user.challengeName === 'SOFTWARE_TOKEN_MFA') {
-            // Navigate to SMS verification screen
-            router.push({
-              pathname: '/screens/VerificacionSMSScreen' as any,
-              params: {
-                phone: user.challengeParam?.phone || '',
-                fullName: email.trim(),
-                isSignUp: 'false'
-              }
-            });
-          } else if (user.challengeName === 'NEW_PASSWORD_REQUIRED') {
-            // Handle new password required scenario
-            router.push('/screens/CambiarContrasenaScreen' as any);
-          } else {
-            // User is successfully signed in, navigate to main app
-            router.push('/');
-          }
-        }
-      } catch (authError: any) {
-        console.error('Error durante la autenticación:', authError);
-        
-        // Check if this is a network error and we're in dev mode
-        if (authError.message && authError.message.includes('Network error')) {
-          // For development only - simulate success to test the UI flow
-          if (__DEV__) {
-            console.log('DEV MODE: Simulating successful login');
-            
-            // Just navigate to main app for testing
-            router.push('/');
-          } else {
-            setError('Error de conexión. Por favor verifica tu conexión a internet e intenta nuevamente.');
-          }
-        } else {
-          throw authError; // Re-throw to be caught by the outer catch
-        }
-      }
-    } catch (err: any) {
-      // Handle specific error types
-      const errorMessage = err.message || 'Error al iniciar sesión. Por favor intenta nuevamente.';
-      
-      if (errorMessage.includes('Incorrect username or password')) {
-        setError('Credenciales incorrectas. Por favor verifica e intenta nuevamente.');
-      } else if (errorMessage.includes('User does not exist')) {
-        setError('Usuario no encontrado. Por favor verifica tu correo electrónico.');
-      } else if (errorMessage.includes('User is not confirmed')) {
-        // Handle unconfirmed user
-        setError('Tu cuenta no ha sido confirmada. Por favor verifica tu correo electrónico.');
-        // Optionally, navigate to confirmation screen
-      } else {
-        setError(errorMessage);
-      }
-      
-      console.error('Error de inicio de sesión:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle forgot password
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setError('Por favor ingresa tu correo electrónico para restablecer la contraseña.');
-      return;
-    }
-    
-    // Simple email validation
-    const emailRegex = /\S+@\S+\.\S+/;
-    if (!emailRegex.test(email.trim())) {
-      setError('Por favor ingresa un correo electrónico válido.');
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      // Gen 1 syntax for forgot password
-      await Auth.forgotPassword(email.trim());
+      // For Gen 1, use forgotPasswordSubmit for this step
+      await Auth.forgotPasswordSubmit(
+        email,
+        code,
+        newPassword
+      );
       
       Alert.alert(
-        "Código enviado",
-        `Se ha enviado un código de verificación a tu correo electrónico.`,
+        "Contraseña restablecida",
+        "Tu contraseña ha sido restablecida exitosamente.",
         [
           {
-            text: "OK",
+            text: "Iniciar sesión",
             onPress: () => {
-              // Navigate to reset password confirmation screen
-              router.push({
-                pathname: '/screens/ResetPasswordScreen' as any,
-                params: { email: email.trim() }
-              });
+              router.replace('/screens/IniciarSesionScreen' as any);
             },
           },
         ]
       );
     } catch (err: any) {
       const errorMessage = err.message || 'Error al restablecer la contraseña. Por favor intenta nuevamente.';
-      setError(errorMessage);
+      
+      if (errorMessage.includes('Invalid verification code')) {
+        setError('Código de verificación inválido. Por favor verifica e intenta nuevamente.');
+      } else {
+        setError(errorMessage);
+      }
+      
       console.error('Error al restablecer la contraseña:', err);
     } finally {
       setIsLoading(false);
@@ -205,7 +136,7 @@ export default function IniciarSesionScreen() {
           {isLoading && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color={COLOR_PRIMARY} />
-              <Text style={styles.loadingText}>Iniciando sesión...</Text>
+              <Text style={styles.loadingText}>Procesando...</Text>
             </View>
           )}
           
@@ -216,12 +147,11 @@ export default function IniciarSesionScreen() {
               onPress={handleGoBack}
               disabled={isLoading}
             >
-              
               <ChevronLeft size={24} color="#fff" />
             </TouchableOpacity>
             
             <ThemedText type="title" style={styles.headerTitle}>
-              Iniciar Sesión
+              Restablecer Contraseña
             </ThemedText>
           </View>
           
@@ -229,45 +159,53 @@ export default function IniciarSesionScreen() {
           <View style={styles.formContainer}>
             <View style={styles.formInnerContainer}>
               <ThemedText type="subtitle" style={styles.formTitle}>
-                Bienvenido de vuelta
+                Crear nueva contraseña
               </ThemedText>
               
               <Text style={styles.formDescription}>
-                Ingresa tus credenciales para acceder a tu cuenta.
+                Ingresa el código de verificación enviado a tu correo electrónico y crea una nueva contraseña.
               </Text>
               
-              {/* Email input */}
+              {/* Email (readonly) */}
               <View style={styles.inputContainer}>
                 <View style={styles.inputIconContainer}>
                   <Mail size={20} color={COLOR_TEXT_SECONDARY} />
                 </View>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Correo electrónico"
-                  placeholderTextColor={COLOR_TEXT_SECONDARY}
+                  style={[styles.input, styles.inputDisabled]}
                   value={email}
+                  editable={false}
+                />
+              </View>
+              
+              {/* Verification code input */}
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Código de verificación"
+                  placeholderTextColor={COLOR_TEXT_SECONDARY}
+                  value={code}
                   onChangeText={(text) => {
-                    setEmail(text);
+                    setCode(text);
                     setError('');
                   }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
+                  keyboardType="number-pad"
                   editable={!isLoading}
                 />
               </View>
               
-              {/* Password input */}
+              {/* New password input */}
               <View style={styles.inputContainer}>
                 <View style={styles.inputIconContainer}>
                   <Lock size={20} color={COLOR_TEXT_SECONDARY} />
                 </View>
                 <TextInput
                   style={styles.input}
-                  placeholder="Contraseña"
+                  placeholder="Nueva contraseña"
                   placeholderTextColor={COLOR_TEXT_SECONDARY}
-                  value={password}
+                  value={newPassword}
                   onChangeText={(text) => {
-                    setPassword(text);
+                    setNewPassword(text);
                     setError('');
                   }}
                   secureTextEntry={!showPassword}
@@ -286,16 +224,24 @@ export default function IniciarSesionScreen() {
                 </TouchableOpacity>
               </View>
               
-              {/* Forgot password */}
-              <TouchableOpacity
-                style={styles.forgotPasswordButton}
-                disabled={isLoading}
-                onPress={handleForgotPassword}
-              >
-                <Text style={styles.forgotPasswordText}>
-                  ¿Olvidaste tu contraseña?
-                </Text>
-              </TouchableOpacity>
+              {/* Confirm password input */}
+              <View style={styles.inputContainer}>
+                <View style={styles.inputIconContainer}>
+                  <Lock size={20} color={COLOR_TEXT_SECONDARY} />
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirmar contraseña"
+                  placeholderTextColor={COLOR_TEXT_SECONDARY}
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    setError('');
+                  }}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                />
+              </View>
               
               {/* Error message */}
               {error ? (
@@ -305,13 +251,13 @@ export default function IniciarSesionScreen() {
                 </View>
               ) : null}
               
-              {/* Login Button */}
+              {/* Reset Button */}
               <TouchableOpacity
                 style={[
                   styles.submitButton, 
                   isLoading && styles.submitButtonDisabled
                 ]}
-                onPress={handleLogin}
+                onPress={handleResetPassword}
                 disabled={isLoading}
               >
                 <LinearGradient
@@ -321,21 +267,11 @@ export default function IniciarSesionScreen() {
                   end={{ x: 1, y: 0 }}
                 >
                   <Text style={styles.submitButtonText}>
-                    {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                    {isLoading ? 'Procesando...' : 'Restablecer Contraseña'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            
-            <Text style={styles.footerText}>
-              ¿No tienes una cuenta?{' '}
-              <Text 
-                style={styles.registerLink} 
-                onPress={() => router.push('/screens/RegistroUsuarioScreen' as any)}
-              >
-                Regístrate aquí
-              </Text>
-            </Text>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -353,7 +289,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 240, // Further increased
+    height: 240,
   },
   safeArea: {
     flex: 1,
@@ -381,14 +317,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 70,
-    paddingBottom: 30, // Increased for more space at bottom of header
+    paddingBottom: 30,
     paddingHorizontal: 16,
     position: 'relative',
   },
   backButton: {
     position: 'absolute',
     left: 16,
-    top: 70, // Matched with header paddingTop
+    top: 70,
     zIndex: 10,
   },
   headerTitle: {
@@ -402,8 +338,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 16,
-    paddingTop: 30, // Increased internal padding
-    marginTop: 40, // Increased for more space
+    paddingTop: 30,
+    marginTop: 40,
   },
   formInnerContainer: {
     backgroundColor: '#fff',
@@ -447,17 +383,12 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontSize: 16,
   },
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
+    color: COLOR_TEXT_SECONDARY,
+  },
   visibilityToggle: {
     paddingHorizontal: 16,
-  },
-  forgotPasswordButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: COLOR_PRIMARY,
-    fontSize: 14,
-    fontWeight: '500',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -500,14 +431,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
     fontSize: 16,
-  },
-  footerText: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: COLOR_TEXT_SECONDARY,
-  },
-  registerLink: {
-    color: COLOR_PRIMARY,
-    fontWeight: '500',
   },
 }); 
