@@ -20,15 +20,15 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="cultivos"
                 options={{
-                    title: 'Cultivos',
-                    tabBarIcon: ({ color }) => <Feather name="grid" size={24} color={color} />,
+                    title: 'Financiamientos',
+                    tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={24} color={color} />,
                 }}
             />
             <Tabs.Screen
                 name="finanzas"
                 options={{
-                    title: 'Finanzas',
-                    tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={24} color={color} />,
+                    title: 'Seguros',
+                    tabBarIcon: ({ color }) => <Feather name="shield" size={24} color={color} />,
                 }}
             />
             <Tabs.Screen
