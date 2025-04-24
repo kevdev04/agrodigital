@@ -10,7 +10,8 @@ AgroDigital is a mobile application likely designed for the agricultural sector.
 *   User interactions through custom components.
 *   Location-based services (e.g., mapping fields, tracking).
 *   Handling media like images or videos (e.g., uploading field pictures).
-*   Integration with a backend system (possibly AWS Amplify) for data storage and APIs.
+*   Integration with a backend system (AWS Amplify) for data storage and APIs.
+*   Comprehensive authentication system using AWS Cognito.
 
 ## Project Structure
 
@@ -32,7 +33,7 @@ agrodigital/
 ├── eas.json          # Expo Application Services (EAS) build configuration
 ├── package.json      # NPM dependencies and scripts
 ├── package-lock.json # Exact dependency versions
-├── README.md         # (This file - potentially outdated starter)
+├── README.md         # (This file)
 └── tsconfig.json     # TypeScript configuration
 ```
 
@@ -44,8 +45,73 @@ agrodigital/
 *   **Navigation:** Expo Router
 *   **UI Components:** `@expo/vector-icons`, `lucide-react-native`, `expo-linear-gradient`, etc.
 *   **Native Features:** `expo-location`, `expo-image-picker`, `expo-av`, `expo-secure-store`
-*   **Backend Integration:** Likely AWS Amplify (inferred from root `amplify.yml`)
+*   **Backend Integration:** AWS Amplify with Cognito authentication
 *   **Build Service:** Expo Application Services (EAS)
+
+## Authentication System
+
+This project uses AWS Amplify Auth Gen 2 for authentication.
+
+### Authentication Setup
+
+To configure Amplify Auth in your environment:
+
+1. Update the `amplify.js` file with your own AWS Cognito credentials:
+
+```js
+// amplify.js
+import { Amplify } from 'aws-amplify';
+
+export const configureAmplify = () => {
+  Amplify.configure({
+    Auth: {
+      Cognito: {
+        userPoolId: 'YOUR_USER_POOL_ID',
+        userPoolClientId: 'YOUR_USER_POOL_CLIENT_ID',
+        region: 'YOUR_REGION',
+      }
+    }
+  });
+};
+```
+
+2. This file is automatically initialized in `_layout.tsx`
+
+### Authentication Flows
+
+#### Sign In
+- Email/password authentication
+- MFA confirmation via SMS
+- Forgot password functionality
+- Forced password change handling
+
+#### Registration
+- User registration with email/password
+- Collection of additional user data
+- Verification code confirmation
+- Code resend flow
+
+#### Verification
+- Unified screen for verification codes
+- Handles both registration confirmation and MFA
+- Intuitive interface with individual input fields
+- Timer for code resending
+
+### Key Authentication Files
+
+- `amplify.js` - Central Amplify configuration
+- `IniciarSesionScreen.tsx` - Sign-in screen
+- `RegistroUsuarioScreen.tsx` - New user registration
+- `VerificacionSMSScreen.tsx` - SMS code verification
+- `ResetPasswordScreen.tsx` - Password reset
+- `CambiarContrasenaScreen.tsx` - Mandatory password change
+
+### Security Requirements
+
+- Passwords must be at least 8 characters
+- Email format validation
+- All error flows appropriately handled
+- Interfaces include loading states for asynchronous operations
 
 ## Getting Started
 
@@ -55,6 +121,7 @@ agrodigital/
 *   npm or yarn
 *   Expo CLI: `npm install -g expo-cli`
 *   Git
+*   AWS Account (for Amplify/Cognito)
 
 ### Installation & Running
 

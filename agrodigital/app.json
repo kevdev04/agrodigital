@@ -43,9 +43,13 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "215f16fb-c0ca-4588-93ca-a542f3ac17e7"
       }
-    }
+    },
+    "owner": "kevdev04"
   }
 }

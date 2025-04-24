@@ -24,6 +24,7 @@ import {
 import { Colors } from '@/constants/Colors';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Auth } from 'aws-amplify';
 
 // Color constants
 const COLOR_PRIMARY = Colors.light.tint;
@@ -39,8 +40,18 @@ export default function VerificacionSMSScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   
-  // Get phone number from params (if passed)
+  // Get parameters from params (if passed)
   const phoneNumber = params.phone ? String(params.phone) : '';
+  const fullName = params.fullName ? String(params.fullName) : '';
+  const email = params.email ? String(params.email) : '';
+  const userId = params.userId ? String(params.userId) : '';
+  const isSignUp = params.isSignUp === 'true';
+  
+  // Old unused params - keeping for backward compatibility
+  const address = params.address ? String(params.address) : '';
+  const birthState = params.birthState ? String(params.birthState) : '';
+  const birthDate = params.birthDate ? String(params.birthDate) : '';
+  const gender = params.gender ? String(params.gender) : '';
   
   // State for the code inputs
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -93,18 +104,33 @@ export default function VerificacionSMSScreen() {
   };
   
   // Resend code function
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (!canResend) return;
     
-    // Reset timer and canResend state
+    setIsLoading(true);
     setTimer(60);
     setCanResend(false);
     
-    // Simulate sending a new code
-    Alert.alert(
-      'Código Reenviado',
-      `Se ha enviado un nuevo código de verificación al número ${phoneNumber}.`
-    );
+    try {
+      // Get email from params for signup or use phone for signin
+      const username = params.email ? String(params.email) : phoneNumber;
+      const isSignUp = params.isSignUp === 'true';
+      
+      if (isSignUp && username) {
+        // Resend sign-up verification code
+        await Auth.resendSignUp(username);
+      }
+      
+      Alert.alert(
+        'Código Reenviado',
+        `Se ha enviado un nuevo código de verificación.`
+      );
+    } catch (err: any) {
+      console.error('Error al reenviar código:', err);
+      setError('Error al reenviar el código. Por favor intenta nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Verify code function
@@ -120,20 +146,56 @@ export default function VerificacionSMSScreen() {
     setIsLoading(true);
     setError('');
     
+    const enteredCode = code.join('');
+    
     try {
-      // Simulate verification delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Get email from params for signup or use phone for signin
+      const username = params.email ? String(params.email) : phoneNumber;
+      const isSignUp = params.isSignUp === 'true';
       
-      // For demo purposes, we'll use a fixed code "123456"
-      const enteredCode = code.join('');
-      if (enteredCode === '123456') {
-        // Success! Navigate to the main app tabs
-        router.replace("/(tabs)");
+      if (isSignUp && username) {
+        // This is a sign-up confirmation flow
+        // If your user pool requires a secret hash, you can include it
+        // It's already configured globally in amplify-config.js
+        await Auth.confirmSignUp(username, enteredCode);
+        
+        // Registration is complete, navigate to login or home
+        Alert.alert(
+          'Verificación Exitosa',
+          'Tu cuenta ha sido verificada exitosamente.',
+          [
+            {
+              text: 'Iniciar sesión',
+              onPress: () => {
+                router.replace('/screens/IniciarSesionScreen' as any);
+              },
+            },
+          ]
+        );
       } else {
-        setError('Código incorrecto. Por favor verifica e intenta nuevamente.');
+        // This is a sign-in MFA confirmation flow
+        try {
+          // For confirmSignIn we need the current user and the MFA code
+          const currentUser = await Auth.currentAuthenticatedUser();
+          // secretHash is handled by the Amplify Auth configuration
+          await Auth.confirmSignIn(currentUser, enteredCode, currentUser.challengeName);
+          
+          // User is signed in, navigate to home
+          router.replace('/(tabs)');
+        } catch (error) {
+          console.error('Error during MFA confirmation:', error);
+          setError('Error durante la verificación MFA. Por favor intente nuevamente.');
+        }
       }
-    } catch (err) {
-      setError('Error al verificar. Por favor intenta nuevamente.');
+    } catch (err: any) {
+      console.error('Error de verificación:', err);
+      const errorMessage = err.message || 'Error al verificar el código.';
+      
+      if (errorMessage.includes('Invalid verification code')) {
+        setError('Código incorrecto. Por favor verifica e intenta nuevamente.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
