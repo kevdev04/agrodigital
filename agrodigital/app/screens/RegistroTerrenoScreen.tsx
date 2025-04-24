@@ -27,10 +27,9 @@ import {
   ChevronLeft, 
   Info 
 } from 'lucide-react-native';
-import { cropService } from '@/api/cropService';
 
 // Color constants matching the app theme
-const COLOR_PRIMARY = '#006400';
+const COLOR_PRIMARY = Colors.light.tint;
 const COLOR_GRAY = Colors.light.icon;
 const COLOR_ERROR = '#DC3545';
 const COLOR_BORDER_LIGHT = '#E5E7EB';
@@ -205,92 +204,15 @@ export default function RegistroTerrenoScreen() {
 
   // Submit form function
   const handleSubmit = async () => {
-    // Validaciones
-    if (!terrainData.hectareas.trim() || !terrainData.cultivo.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos requeridos.');
-      return;
-    }
-
-    if (photos.length === 0) {
-      Alert.alert('Error', 'Por favor añade al menos una foto del terreno.');
-      return;
-    }
-
-    if (!location) {
-      Alert.alert('Error', 'Por favor registra la ubicación del terreno.');
-      return;
-    }
-
-    if (!agreementChecked) {
-      Alert.alert('Error', 'Debes aceptar los términos y condiciones.');
-      return;
-    }
-
     try {
-      // Mostrar indicador de carga
-      setIsLoadingLocation(true);
-
-      // En una app real, este ID vendría del sistema de autenticación o de la navegación
-      // Por ahora, usamos un ID fijo para pruebas
-      const userId = "user123";
-      
-      // Calcular superficie total
-      const hectareas = parseFloat(terrainData.hectareas);
-      const metros = parseFloat(terrainData.metros || '0') / 10000; // convertir a hectáreas
-      const areaTotal = hectareas + metros;
-      
-      // Valor estimado (para demostración)
-      const valorPorHectarea = Math.floor(Math.random() * 100000) + 50000; // Entre 50,000 y 150,000 por hectárea
-      const valorTotal = areaTotal * valorPorHectarea;
-      
-      // Preparar los datos para enviar a la API
-      const cropData = {
-        // Información básica del terreno
-        cropId: `crop-${Date.now()}`,
-        userId: userId,
-        name: terrainData.cultivo,
-        cropType: terrainData.cultivo,
-        plantDate: new Date().toISOString().split('T')[0],
-        location: `${location.coords.latitude},${location.coords.longitude}`,
-        area: areaTotal,
-        notes: terrainData.descripcion || '',
-        status: 'active',
-        
-        // Información adicional para la valoración financiera
-        valorEstimado: valorTotal,
-        valorPorHectarea: valorPorHectarea,
-        tieneEscrituras: documents.length > 0,
-        fechaRegistro: new Date().toISOString(),
-        
-        // Metadatos
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log('Enviando datos del terreno:', cropData);
-
-      // Llamar a la API para crear el cultivo
-      const response = await cropService.createCrop(cropData);
-      console.log('Terreno registrado exitosamente:', response.data);
-
-      // Mostrar panel de resultado exitoso
+      // Simulando éxito inmediato sin validaciones
       Alert.alert(
         'Registro exitoso',
-        'Tu terreno ha sido registrado correctamente. Los detalles se han guardado en el sistema.',
+        'Tu terreno ha sido registrado correctamente.',
         [
           {
-            text: 'Ver mis cultivos',
-            onPress: () => {
-              try {
-                // @ts-ignore - Ignorar errores de tipos de TypeScript
-                router.navigate({
-                  pathname: "/(tabs)/cultivos"
-                });
-              } catch (error) {
-                console.error('Error al navegar:', error);
-                router.back();
-              }
-            }
+            text: 'OK',
+            onPress: () => router.back()
           }
         ]
       );
@@ -300,8 +222,6 @@ export default function RegistroTerrenoScreen() {
         'Error',
         'Hubo un problema al registrar tu terreno. Por favor intenta de nuevo más tarde.'
       );
-    } finally {
-      setIsLoadingLocation(false);
     }
   };
 
@@ -322,7 +242,7 @@ export default function RegistroTerrenoScreen() {
         {/* Instructional section */}
         <View style={styles.infoSection}>
           <Info size={20} color={COLOR_PRIMARY} />
-          <Text style={styles.infoText} numberOfLines={3} ellipsizeMode="tail">
+          <Text style={styles.infoText}>
             Para continuar con tu solicitud de financiamiento, necesitamos información sobre tu terreno.
           </Text>
         </View>
@@ -379,7 +299,7 @@ export default function RegistroTerrenoScreen() {
         {/* Photo section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fotografías del terreno</Text>
-          <Text style={styles.sectionDescription} numberOfLines={3} ellipsizeMode="tail">
+          <Text style={styles.sectionDescription}>
             Agrega fotos que muestren claramente los límites y características de tu terreno.
           </Text>
           
@@ -424,7 +344,7 @@ export default function RegistroTerrenoScreen() {
         {/* Location section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ubicación GPS</Text>
-          <Text style={styles.sectionDescription} numberOfLines={4} ellipsizeMode="tail">
+          <Text style={styles.sectionDescription}>
             Registra la ubicación exacta de tu terreno. Es importante que te encuentres físicamente en el terreno al momento de registrar la ubicación.
           </Text>
           
@@ -463,7 +383,7 @@ export default function RegistroTerrenoScreen() {
         {/* Documents section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Documentos legales</Text>
-          <Text style={styles.sectionDescription} numberOfLines={3} ellipsizeMode="tail">
+          <Text style={styles.sectionDescription}>
             Sube escrituras de propiedad u otros documentos que acrediten la propiedad del terreno.
           </Text>
           
@@ -509,7 +429,7 @@ export default function RegistroTerrenoScreen() {
             ]}>
               {agreementChecked && <Check size={16} color="#fff" />}
             </View>
-            <Text style={styles.agreementText} numberOfLines={5} ellipsizeMode="tail">
+            <Text style={styles.agreementText}>
               Declaro que soy el propietario legítimo del terreno y acepto que este sea utilizado como garantía para el financiamiento solicitado. Comprendo las implicaciones legales y financieras de este acuerdo.
             </Text>
           </TouchableOpacity>
@@ -519,11 +439,9 @@ export default function RegistroTerrenoScreen() {
         <TouchableOpacity 
           style={[
             styles.button, 
-            styles.buttonPrimary,
-            (!agreementChecked || !terrainData.hectareas || !terrainData.metros || !location || photos.length === 0 || documents.length === 0) && styles.buttonDisabled
+            styles.buttonPrimary
           ]} 
           onPress={handleSubmit}
-          disabled={!agreementChecked || !terrainData.hectareas || !terrainData.metros || !location || photos.length === 0 || documents.length === 0}
         >
           <Text style={styles.buttonPrimaryText}>Registrar terreno</Text>
         </TouchableOpacity>
